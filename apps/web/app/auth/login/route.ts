@@ -7,6 +7,43 @@ function redirect(request: Request, destination: string) {
   return NextResponse.redirect(new URL(destination, resolveRequestOrigin(request)), 303);
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll("\"", "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function redirectDocument(request: Request, destination: string) {
+  const targetUrl = new URL(destination, resolveRequestOrigin(request)).toString();
+  const escapedTargetUrl = escapeHtml(targetUrl);
+
+  return new NextResponse(
+    `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="refresh" content="0;url=${escapedTargetUrl}" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Redirecting...</title>
+  </head>
+  <body>
+    <p>Redirecting to <a href="${escapedTargetUrl}">${escapedTargetUrl}</a>...</p>
+    <script>window.location.replace(${JSON.stringify(targetUrl)});</script>
+  </body>
+</html>`,
+    {
+      status: 200,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store"
+      }
+    }
+  );
+}
+
 export async function POST(request: Request) {
   const formData = await request.formData();
   const email = String(formData.get("email") ?? "").trim();
@@ -38,7 +75,7 @@ export async function POST(request: Request) {
       return redirect(request, "/login?error=failed");
     }
 
-    const response = redirect(request, "/requests");
+    const response = redirectDocument(request, "/requests");
     const setCookie = apiResponse.headers.get("set-cookie");
 
     if (setCookie) {
