@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { resolveRequestOrigin } from "../../../lib/request-origin";
+import { setSession } from "../../../lib/session";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
-const ACCESS_TOKEN_COOKIE = "crm_access_token";
-const USER_COOKIE = "crm_user";
-const IS_PROD = process.env.NODE_ENV === "production";
 
 type LoginResponsePayload = {
   accessToken?: string;
@@ -96,21 +94,7 @@ export async function POST(request: Request) {
 
     const response = redirectDocument(request, "/requests");
 
-    response.cookies.set(ACCESS_TOKEN_COOKIE, payload.accessToken, {
-      path: "/",
-      httpOnly: true,
-      sameSite: "lax",
-      secure: IS_PROD,
-      maxAge: 60 * 60 * 12
-    });
-
-    response.cookies.set(USER_COOKIE, encodeURIComponent(JSON.stringify(payload.user)), {
-      path: "/",
-      httpOnly: true,
-      sameSite: "lax",
-      secure: IS_PROD,
-      maxAge: 60 * 60 * 12
-    });
+    setSession(response.cookies, payload.accessToken, payload.user);
 
     return response;
   } catch {

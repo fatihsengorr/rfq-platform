@@ -5,6 +5,7 @@ export default async function SessionDebugPage() {
   const cookieStore = await cookies();
   const headerStore = await headers();
   const session = await getSession(cookieStore);
+  const combinedSession = cookieStore.get("rfq_session")?.value ?? null;
   const accessToken = cookieStore.get("crm_access_token")?.value ?? null;
   const userCookie = cookieStore.get("crm_user")?.value ?? null;
   const probeInsecure = cookieStore.get("probe_insecure")?.value ?? null;
@@ -28,6 +29,8 @@ export default async function SessionDebugPage() {
             ["x-forwarded-host", headerStore.get("x-forwarded-host") ?? "-"],
             ["x-forwarded-proto", headerStore.get("x-forwarded-proto") ?? "-"],
             ["cookie header present", headerStore.get("cookie") ? "yes" : "no"],
+            ["rfq_session present", combinedSession ? "yes" : "no"],
+            ["rfq_session length", combinedSession ? String(combinedSession.length) : "0"],
             ["crm_access_token present", accessToken ? "yes" : "no"],
             ["crm_access_token length", accessToken ? String(accessToken.length) : "0"],
             ["crm_user present", userCookie ? "yes" : "no"],
