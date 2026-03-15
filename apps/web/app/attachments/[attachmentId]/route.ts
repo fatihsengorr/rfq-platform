@@ -3,10 +3,6 @@ import { getSession } from "../../../lib/session";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
 
-type RouteContext = {
-  params: Promise<{ attachmentId: string }> | { attachmentId: string };
-};
-
 function pickResponseHeaders(source: Headers) {
   const headers = new Headers();
   const contentType = source.get("content-type");
@@ -22,8 +18,11 @@ function pickResponseHeaders(source: Headers) {
   return headers;
 }
 
-export async function GET(request: Request, context: RouteContext) {
-  const { attachmentId } = await context.params;
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ attachmentId: string }> }
+) {
+  const { attachmentId } = await params;
   const session = await getSession();
 
   if (!session.accessToken) {
