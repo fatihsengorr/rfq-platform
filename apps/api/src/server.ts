@@ -12,7 +12,8 @@ export function buildServer() {
 
   server.register(cors, {
     origin: true,
-    methods: ["GET", "POST", "PATCH"]
+    methods: ["GET", "POST", "PATCH"],
+    credentials: true
   });
 
   server.get("/health", async () => ({ status: "ok" }));

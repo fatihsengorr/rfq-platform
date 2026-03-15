@@ -7,15 +7,15 @@ type LoginFormProps = {
 };
 
 type LoginResult = {
-  ok?: boolean;
-  sessionValue?: string;
-  redirectTo?: string;
+  user?: {
+    id: string;
+    email: string;
+    fullName: string;
+    role: "LONDON_SALES" | "ISTANBUL_PRICING" | "ISTANBUL_MANAGER" | "ADMIN";
+  };
   code?: string;
   message?: string;
 };
-
-const SESSION_COOKIE = "rfq_session";
-const SESSION_MAX_AGE = 60 * 60 * 12;
 
 function mapErrorMessage(code?: string, fallback?: string) {
   if (code === "UNAUTHORIZED") return "Invalid credentials.";
@@ -39,25 +39,24 @@ export function LoginForm({ initialError }: LoginFormProps) {
     const password = String(formData.get("password") ?? "").trim();
 
     try {
-      const response = await fetch("/auth/login-json", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({ email, password }),
-        credentials: "same-origin"
+        credentials: "include"
       });
 
-      const payload = (await response.json()) as LoginResult;
+      const payload = (await response.json().catch(() => ({}))) as LoginResult;
 
-      if (!response.ok || !payload.ok || !payload.sessionValue) {
+      if (!response.ok || !payload.user) {
         setErrorMessage(mapErrorMessage(payload.code, payload.message));
         setIsSubmitting(false);
         return;
       }
 
-      document.cookie = `${SESSION_COOKIE}=${payload.sessionValue}; Max-Age=${SESSION_MAX_AGE}; Path=/; SameSite=Lax; Secure`;
-      window.location.assign(payload.redirectTo ?? "/requests");
+      window.location.assign("/requests");
     } catch {
       setErrorMessage("API is unreachable.");
       setIsSubmitting(false);

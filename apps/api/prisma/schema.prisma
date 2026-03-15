@@ -54,6 +54,7 @@ model User {
   rfqsAssignedPricing  Rfq[]           @relation("rfq_assigned_pricing_user")
   rfqsAssignedBy       Rfq[]           @relation("rfq_assigned_by_user")
   passwordResetTokens  PasswordResetToken[]
+  sessions             Session[]
 }
 
 model Rfq {
@@ -186,4 +187,16 @@ model PasswordResetToken {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt, expiresAt])
 }

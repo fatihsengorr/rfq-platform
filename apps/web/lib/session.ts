@@ -1,9 +1,8 @@
 import { cookies } from "next/headers";
 
 const SESSION_COOKIE = "rfq_session";
-const ACCESS_TOKEN_COOKIE = "crm_access_token";
-const USER_COOKIE = "crm_user";
-const IS_PROD = process.env.NODE_ENV === "production";
+const LEGACY_ACCESS_TOKEN_COOKIE = "crm_access_token";
+const API_BASE_URL = process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
 
 export type SessionUser = {
   id: string;
@@ -24,75 +23,48 @@ type CookieAdapter = {
   set: (name: string, value: string, options: CookieOptions) => unknown;
 };
 
-export function createSessionValue(accessToken: string, user: SessionUser) {
-  return Buffer.from(JSON.stringify({ accessToken, user }), "utf8").toString("base64url");
+export function clearSession(store: CookieAdapter) {
+  store.set(SESSION_COOKIE, "", { path: "/", maxAge: 0 });
+  store.set(LEGACY_ACCESS_TOKEN_COOKIE, "", { path: "/", maxAge: 0 });
+  store.set("crm_user", "", { path: "/", maxAge: 0 });
 }
 
-function decodeSessionPayload(rawValue: string): { accessToken: string; user: SessionUser } | null {
+async function fetchCurrentUser(accessToken: string): Promise<SessionUser | null> {
   try {
-    const decoded = Buffer.from(rawValue, "base64url").toString("utf8");
-    const parsed = JSON.parse(decoded) as { accessToken?: string; user?: SessionUser };
+    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      },
+      cache: "no-store"
+    });
 
-    if (!parsed.accessToken || !parsed.user) {
+    if (!response.ok) {
       return null;
     }
 
-    return {
-      accessToken: parsed.accessToken,
-      user: parsed.user
-    };
+    const payload = (await response.json()) as { user?: SessionUser };
+    return payload.user ?? null;
   } catch {
     return null;
   }
 }
 
-export function setSession(store: CookieAdapter, accessToken: string, user: SessionUser) {
-  store.set(SESSION_COOKIE, createSessionValue(accessToken, user), {
-    path: "/",
-    httpOnly: true,
-    sameSite: "lax",
-    secure: IS_PROD,
-    maxAge: 60 * 60 * 12
-  });
-
-  // Remove legacy split cookies after migrating to a single session cookie.
-  store.set(ACCESS_TOKEN_COOKIE, "", { path: "/", maxAge: 0 });
-  store.set(USER_COOKIE, "", { path: "/", maxAge: 0 });
-}
-
-export function clearSession(store: CookieAdapter) {
-  store.set(SESSION_COOKIE, "", { path: "/", maxAge: 0 });
-  store.set(ACCESS_TOKEN_COOKIE, "", { path: "/", maxAge: 0 });
-  store.set(USER_COOKIE, "", { path: "/", maxAge: 0 });
-}
-
 export async function getSession(store?: CookieStore) {
   const cookieStore = store ?? (await cookies());
-  const rawSession = cookieStore.get(SESSION_COOKIE)?.value ?? null;
-
-  if (rawSession) {
-    const parsedSession = decodeSessionPayload(rawSession);
-
-    if (parsedSession) {
-      return parsedSession;
-    }
-  }
-
-  const accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value ?? null;
-  const rawUser = cookieStore.get(USER_COOKIE)?.value;
+  const accessToken =
+    cookieStore.get(SESSION_COOKIE)?.value ??
+    cookieStore.get(LEGACY_ACCESS_TOKEN_COOKIE)?.value ??
+    null;
 
   if (!accessToken) {
     return { accessToken: null, user: null as SessionUser | null };
   }
 
-  if (!rawUser) {
-    return { accessToken, user: null as SessionUser | null };
+  const user = await fetchCurrentUser(accessToken);
+
+  if (!user) {
+    return { accessToken: null, user: null as SessionUser | null };
   }
 
-  try {
-    const parsed = JSON.parse(decodeURIComponent(rawUser)) as SessionUser;
-    return { accessToken, user: parsed };
-  } catch {
-    return { accessToken, user: null as SessionUser | null };
-  }
+  return { accessToken, user };
 }

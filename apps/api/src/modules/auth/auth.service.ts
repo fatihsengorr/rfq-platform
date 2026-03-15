@@ -1,24 +1,19 @@
 import { UserRole } from "@prisma/client";
 import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
-import jwt from "jsonwebtoken";
 import { ApiError } from "../../errors.js";
 import { prisma } from "../../prisma.js";
 
-const JWT_SECRET = process.env.AUTH_JWT_SECRET ?? "dev-secret-change-me";
-const ACCESS_TOKEN_EXPIRES_IN = "12h";
 const SCRYPT_KEY_LENGTH = 64;
 const SCRYPT_SALT_LENGTH = 16;
 const RESET_TOKEN_TTL_MINUTES = 30;
 const RESET_TOKEN_LENGTH_BYTES = 32;
+const SESSION_TTL_HOURS = 12;
 const scrypt = promisify(scryptCallback);
 const ALLOW_LEGACY_PASSWORD_UPGRADE =
   (process.env.ALLOW_LEGACY_PASSWORD_UPGRADE ?? (process.env.NODE_ENV === "production" ? "false" : "true")) === "true";
 const APP_WEB_BASE_URL = process.env.APP_WEB_BASE_URL ?? "http://localhost:3000";
-
-if (process.env.NODE_ENV === "production" && (!process.env.AUTH_JWT_SECRET || process.env.AUTH_JWT_SECRET === "dev-secret-change-me")) {
-  throw new Error("AUTH_JWT_SECRET must be set to a strong value in production.");
-}
+export const SESSION_COOKIE_NAME = "rfq_session";
 
 const LEGACY_PASSWORD_UPGRADE: Record<string, string> = {
   "sales@crm.local": "Pass123!",
@@ -31,13 +26,6 @@ let bootstrapChecked = false;
 
 export type AuthUser = {
   id: string;
-  email: string;
-  fullName: string;
-  role: UserRole;
-};
-
-type AuthTokenPayload = {
-  sub: string;
   email: string;
   fullName: string;
   role: UserRole;
@@ -78,6 +66,10 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 function hashResetToken(rawToken: string) {
+  return createHash("sha256").update(rawToken).digest("hex");
+}
+
+function hashSessionToken(rawToken: string) {
   return createHash("sha256").update(rawToken).digest("hex");
 }
 
@@ -225,15 +217,16 @@ export async function loginWithPassword(email: string, password: string) {
     throw new ApiError("UNAUTHORIZED", "Invalid email or password.", 401);
   }
 
-  const payload: AuthTokenPayload = {
-    sub: user.id,
-    email: user.email,
-    fullName: user.fullName,
-    role: user.role
-  };
+  const accessToken = randomBytes(32).toString("base64url");
+  const tokenHash = hashSessionToken(accessToken);
+  const expiresAt = new Date(Date.now() + SESSION_TTL_HOURS * 60 * 60 * 1000);
 
-  const accessToken = jwt.sign(payload, JWT_SECRET, {
-    expiresIn: ACCESS_TOKEN_EXPIRES_IN
+  await prisma.session.create({
+    data: {
+      tokenHash,
+      expiresAt,
+      userId: user.id
+    }
   });
 
   return {
@@ -263,59 +256,80 @@ export function extractBearerToken(authHeader: string | string[] | undefined): s
   return token;
 }
 
-export function verifyAccessToken(token: string): AuthSession {
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET) as AuthTokenPayload;
+export function extractSessionTokenFromCookie(cookieHeader: string | undefined): string | null {
+  if (!cookieHeader) {
+    return null;
+  }
 
-    if (!decoded?.sub || !decoded?.email || !decoded?.fullName || !decoded?.role) {
-      throw new ApiError("UNAUTHORIZED", "Authentication token is malformed.", 401);
+  for (const part of cookieHeader.split(";")) {
+    const [rawName, ...rest] = part.trim().split("=");
+
+    if (rawName !== SESSION_COOKIE_NAME || rest.length === 0) {
+      continue;
     }
 
-    return {
-      user: {
-        id: decoded.sub,
-        email: decoded.email,
-        fullName: decoded.fullName,
-        role: decoded.role
-      }
-    };
-  } catch {
-    throw new ApiError("UNAUTHORIZED", "Authentication token is invalid or expired.", 401);
+    return rest.join("=");
   }
+
+  return null;
 }
 
 export async function resolveAccessToken(token: string): Promise<AuthSession> {
-  const session = verifyAccessToken(token);
+  const tokenHash = hashSessionToken(token);
+  const now = new Date();
 
-  const user = await prisma.user.findUnique({
+  const session = await prisma.session.findFirst({
     where: {
-      id: session.user.id
+      tokenHash,
+      revokedAt: null,
+      expiresAt: {
+        gt: now
+      }
     },
     select: {
       id: true,
-      email: true,
-      fullName: true,
-      role: true,
-      isActive: true
+      user: {
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          role: true,
+          isActive: true
+        }
+      }
     }
   });
 
-  if (!user) {
+  if (!session?.user) {
     throw new ApiError("UNAUTHORIZED", "Authentication token is invalid or expired.", 401);
   }
 
-  if (!user.isActive) {
+  if (!session.user.isActive) {
     throw new ApiError("FORBIDDEN", "Your account is inactive. Please contact administrator.", 403);
   }
 
   return {
     user: {
-      id: user.id,
-      email: user.email,
-      fullName: user.fullName,
-      role: user.role
+      id: session.user.id,
+      email: session.user.email,
+      fullName: session.user.fullName,
+      role: session.user.role
     }
   };
+}
+
+export async function revokeAccessToken(token: string) {
+  const tokenHash = hashSessionToken(token);
+
+  await prisma.session.updateMany({
+    where: {
+      tokenHash,
+      revokedAt: null
+    },
+    data: {
+      revokedAt: new Date()
+    }
+  });
 }
 
 export async function issuePasswordReset(email: string) {
