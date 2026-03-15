@@ -15,6 +15,9 @@ type LoginResponsePayload = {
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_JWT_SECRET ?? "dev-secret-change-me",
+  pages: {
+    signIn: "/login"
+  },
   session: {
     strategy: "jwt",
     maxAge: 60 * 60 * 12

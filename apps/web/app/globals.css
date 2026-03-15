@@ -697,6 +697,66 @@ a.data-row:hover,
   box-shadow: 0 0 0 3px rgba(142, 184, 214, 0.2);
 }
 
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  align-items: center;
+}
+
+.auth-card-grid {
+  display: grid;
+  grid-template-columns: 1.15fr minmax(340px, 420px);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.auth-showcase {
+  display: grid;
+  gap: 1rem;
+  padding: 1.7rem;
+}
+
+.auth-showcase h1 {
+  margin: 0.15rem 0 0;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  line-height: 1.03;
+  max-width: 12ch;
+}
+
+.auth-showcase .sub {
+  max-width: 56ch;
+  font-size: 1rem;
+}
+
+.auth-bullets {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.auth-bullets > div {
+  border: 1px solid #d8e3ec;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 0.8rem 0.9rem;
+}
+
+.auth-bullets strong {
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.auth-bullets p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.auth-form-panel {
+  margin-top: 0;
+  align-self: center;
+  padding: 1.15rem;
+}
+
 .file-picker {
   border-style: dashed;
   background: var(--bg-soft);
@@ -737,6 +797,10 @@ code {
   }
 
   .quotes-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-card-grid {
     grid-template-columns: 1fr;
   }
 }
