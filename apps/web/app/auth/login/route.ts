@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
+import { createLoginHandoff } from "../../../lib/login-handoff";
 import { resolveRequestOrigin } from "../../../lib/request-origin";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+
+type LoginResponsePayload = {
+  accessToken?: string;
+};
 
 function redirect(request: Request, destination: string) {
   return NextResponse.redirect(new URL(destination, resolveRequestOrigin(request)), 303);
@@ -75,14 +80,14 @@ export async function POST(request: Request) {
       return redirect(request, "/login?error=failed");
     }
 
-    const response = redirectDocument(request, "/requests");
-    const setCookie = apiResponse.headers.get("set-cookie");
+    const payload = (await apiResponse.json()) as LoginResponsePayload;
 
-    if (setCookie) {
-      response.headers.append("set-cookie", setCookie);
+    if (!payload.accessToken) {
+      return redirect(request, "/login?error=failed");
     }
 
-    return response;
+    const nonce = createLoginHandoff(payload.accessToken);
+    return redirectDocument(request, `/auth/complete?nonce=${encodeURIComponent(nonce)}`);
   } catch {
     return redirect(request, "/login?error=network");
   }
