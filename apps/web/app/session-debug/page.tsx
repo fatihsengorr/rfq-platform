@@ -7,6 +7,9 @@ export default async function SessionDebugPage() {
   const session = await getSession(cookieStore);
   const accessToken = cookieStore.get("crm_access_token")?.value ?? null;
   const userCookie = cookieStore.get("crm_user")?.value ?? null;
+  const probeInsecure = cookieStore.get("probe_insecure")?.value ?? null;
+  const probeSecure = cookieStore.get("probe_secure")?.value ?? null;
+  const probeHttpOnly = cookieStore.get("probe_http_only")?.value ?? null;
 
   return (
     <main className="shell">
@@ -28,6 +31,9 @@ export default async function SessionDebugPage() {
             ["crm_access_token present", accessToken ? "yes" : "no"],
             ["crm_access_token length", accessToken ? String(accessToken.length) : "0"],
             ["crm_user present", userCookie ? "yes" : "no"],
+            ["probe_insecure present", probeInsecure ? "yes" : "no"],
+            ["probe_secure present", probeSecure ? "yes" : "no"],
+            ["probe_http_only present", probeHttpOnly ? "yes" : "no"],
             ["session access token", session.accessToken ? "yes" : "no"],
             ["session user email", session.user?.email ?? "-"],
             ["session user role", session.user?.role ?? "-"],
