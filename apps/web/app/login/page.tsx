@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "../../lib/session";
+import { LoginForm } from "./login-form";
 
 function resolveError(error?: string) {
   if (!error) return null;
@@ -33,21 +34,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <h1>Sign In</h1>
         <p>Sign in with your assigned company account.</p>
         {statusMessage && <p className="notice notice-success">{statusMessage}</p>}
-        {errorMessage && <p className="notice notice-error">{errorMessage}</p>}
-
-        <form action="/auth/login" method="post" className="rfq-form" style={{ gridTemplateColumns: "1fr" }}>
-          <label>
-            <span>Email</span>
-            <input name="email" type="email" required />
-          </label>
-          <label>
-            <span>Password</span>
-            <input name="password" type="password" required />
-          </label>
-          <button type="submit" className="primary-btn">
-            Sign In
-          </button>
-        </form>
+        <LoginForm initialError={errorMessage} />
 
         <p style={{ marginTop: "0.7rem" }}>
           <a href="/forgot-password" className="ghost-link">

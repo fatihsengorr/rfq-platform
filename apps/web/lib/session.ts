@@ -24,7 +24,7 @@ type CookieAdapter = {
   set: (name: string, value: string, options: CookieOptions) => unknown;
 };
 
-function encodeSessionPayload(accessToken: string, user: SessionUser) {
+export function createSessionValue(accessToken: string, user: SessionUser) {
   return Buffer.from(JSON.stringify({ accessToken, user }), "utf8").toString("base64url");
 }
 
@@ -47,7 +47,7 @@ function decodeSessionPayload(rawValue: string): { accessToken: string; user: Se
 }
 
 export function setSession(store: CookieAdapter, accessToken: string, user: SessionUser) {
-  store.set(SESSION_COOKIE, encodeSessionPayload(accessToken, user), {
+  store.set(SESSION_COOKIE, createSessionValue(accessToken, user), {
     path: "/",
     httpOnly: true,
     sameSite: "lax",
