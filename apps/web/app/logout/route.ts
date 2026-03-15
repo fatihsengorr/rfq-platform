@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { resolveRequestOrigin } from "../../lib/request-origin";
 import { clearSession } from "../../lib/session";
 
 function resolveNextPath(candidate: string | null) {
@@ -17,5 +18,5 @@ export async function GET(request: Request) {
 
   clearSession(store);
 
-  return NextResponse.redirect(new URL(nextPath, url.origin));
+  return NextResponse.redirect(new URL(nextPath, resolveRequestOrigin(request)));
 }

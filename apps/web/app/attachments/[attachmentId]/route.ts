@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveRequestOrigin } from "../../../lib/request-origin";
 import { getSession } from "../../../lib/session";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
@@ -26,7 +27,7 @@ export async function GET(
   const session = await getSession();
 
   if (!session.accessToken) {
-    return NextResponse.redirect(new URL("/login", request.url), 303);
+    return NextResponse.redirect(new URL("/login", resolveRequestOrigin(request)), 303);
   }
 
   try {
@@ -39,7 +40,7 @@ export async function GET(
     });
 
     if (apiResponse.status === 401) {
-      return NextResponse.redirect(new URL("/login", request.url), 303);
+      return NextResponse.redirect(new URL("/login", resolveRequestOrigin(request)), 303);
     }
 
     return new NextResponse(apiResponse.body, {

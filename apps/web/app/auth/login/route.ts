@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveRequestOrigin } from "../../../lib/request-origin";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
 const ACCESS_TOKEN_COOKIE = "crm_access_token";
@@ -16,7 +17,7 @@ type LoginResponsePayload = {
 };
 
 function redirect(request: Request, destination: string) {
-  return NextResponse.redirect(new URL(destination, request.url), 303);
+  return NextResponse.redirect(new URL(destination, resolveRequestOrigin(request)), 303);
 }
 
 export async function POST(request: Request) {
