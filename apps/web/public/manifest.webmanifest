@@ -1,0 +1,9 @@
+{
+  "name": "RFQ Tracking",
+  "short_name": "RFQ",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f6ef",
+  "theme_color": "#0d5c63",
+  "icons": []
+}

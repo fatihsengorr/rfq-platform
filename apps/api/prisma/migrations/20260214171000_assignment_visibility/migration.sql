@@ -1,0 +1,14 @@
+ALTER TABLE "Rfq"
+ADD COLUMN "assignedPricingUserId" TEXT,
+ADD COLUMN "assignedById" TEXT,
+ADD COLUMN "assignedAt" TIMESTAMP(3);
+
+ALTER TABLE "Rfq"
+ADD CONSTRAINT "Rfq_assignedPricingUserId_fkey"
+FOREIGN KEY ("assignedPricingUserId") REFERENCES "User"("id")
+ON DELETE SET NULL ON UPDATE CASCADE;
+
+ALTER TABLE "Rfq"
+ADD CONSTRAINT "Rfq_assignedById_fkey"
+FOREIGN KEY ("assignedById") REFERENCES "User"("id")
+ON DELETE SET NULL ON UPDATE CASCADE;

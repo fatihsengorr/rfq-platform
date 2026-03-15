@@ -1,0 +1,189 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  LONDON_SALES
+  ISTANBUL_PRICING
+  ISTANBUL_MANAGER
+  ADMIN
+}
+
+enum RfqStatus {
+  NEW
+  IN_REVIEW
+  PRICING_IN_PROGRESS
+  PENDING_MANAGER_APPROVAL
+  QUOTED
+  REVISION_REQUESTED
+  CLOSED
+}
+
+enum QuoteRevisionStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  fullName    String
+  passwordHash String?
+  role        UserRole
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  rfqsCreated          Rfq[]           @relation("rfq_created_by")
+  quoteRevisions       QuoteRevision[] @relation("quote_created_by")
+  approvals            QuoteApproval[] @relation("approval_decided_by")
+  attachmentUploads    Attachment[]    @relation("attachment_uploaded_by")
+  leadOwners           Lead[]          @relation("lead_owner")
+  rfqsAssignedPricing  Rfq[]           @relation("rfq_assigned_pricing_user")
+  rfqsAssignedBy       Rfq[]           @relation("rfq_assigned_by_user")
+  passwordResetTokens  PasswordResetToken[]
+}
+
+model Rfq {
+  id             String      @id @default(uuid())
+  projectName    String
+  deadline       DateTime
+  projectDetails String
+  requestedBy    String
+  status         RfqStatus   @default(NEW)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  createdById    String
+  createdBy      User        @relation("rfq_created_by", fields: [createdById], references: [id])
+  assignedPricingUserId String?
+  assignedPricingUser   User?       @relation("rfq_assigned_pricing_user", fields: [assignedPricingUserId], references: [id])
+  assignedById          String?
+  assignedBy            User?       @relation("rfq_assigned_by_user", fields: [assignedById], references: [id])
+  assignedAt            DateTime?
+
+  attachments    Attachment[]
+  quoteRevisions QuoteRevision[]
+}
+
+model QuoteRevision {
+  id             String              @id @default(uuid())
+  versionNumber  Int
+  currency       String
+  totalAmount    Decimal             @db.Decimal(18, 2)
+  notes          String
+  status         QuoteRevisionStatus @default(DRAFT)
+  createdAt      DateTime            @default(now())
+
+  rfqId          String
+  rfq            Rfq                 @relation(fields: [rfqId], references: [id])
+
+  createdById    String
+  createdBy      User                @relation("quote_created_by", fields: [createdById], references: [id])
+
+  attachments    Attachment[]
+  approvals      QuoteApproval[]
+
+  @@unique([rfqId, versionNumber])
+}
+
+model QuoteApproval {
+  id              String           @id @default(uuid())
+  decision        ApprovalDecision
+  comment         String
+  decidedAt       DateTime         @default(now())
+
+  quoteRevisionId String
+  quoteRevision   QuoteRevision    @relation(fields: [quoteRevisionId], references: [id])
+
+  decidedById     String
+  decidedBy       User             @relation("approval_decided_by", fields: [decidedById], references: [id])
+}
+
+model Attachment {
+  id                String         @id @default(uuid())
+  category          String
+  fileName          String
+  mimeType          String
+  sizeBytes         Int
+  storageKey        String
+  publicUrl         String
+  createdAt         DateTime       @default(now())
+
+  rfqId             String?
+  rfq               Rfq?           @relation(fields: [rfqId], references: [id])
+
+  quoteRevisionId   String?
+  quoteRevision     QuoteRevision? @relation(fields: [quoteRevisionId], references: [id])
+
+  uploadedById      String
+  uploadedBy        User           @relation("attachment_uploaded_by", fields: [uploadedById], references: [id])
+}
+
+// Future CRM extension models
+model CustomerCompany {
+  id             String    @id @default(uuid())
+  name           String
+  country        String?
+  city           String?
+  website        String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  contacts       Contact[]
+  leads          Lead[]
+}
+
+model Contact {
+  id               String           @id @default(uuid())
+  fullName         String
+  email            String?
+  phone            String?
+  title            String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  companyId        String
+  company          CustomerCompany  @relation(fields: [companyId], references: [id])
+}
+
+model Lead {
+  id                String           @id @default(uuid())
+  title             String
+  description       String?
+  stage             String           @default("NEW")
+  expectedValue     Decimal?         @db.Decimal(18, 2)
+  expectedCloseDate DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  companyId         String
+  company           CustomerCompany  @relation(fields: [companyId], references: [id])
+
+  ownerId           String
+  owner             User             @relation("lead_owner", fields: [ownerId], references: [id])
+}
+
+model PasswordResetToken {
+  id         String   @id @default(uuid())
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
