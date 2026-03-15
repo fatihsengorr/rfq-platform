@@ -64,7 +64,7 @@ async function reviseRequestAction(formData: FormData) {
       if (error.code === "FORBIDDEN") noticeCode = "request_revise_forbidden";
       if (error.code === "INVALID_REQUEST") noticeCode = "request_revise_invalid";
       if (error.code === "NETWORK_ERROR") noticeCode = "api_unreachable";
-      if (error.code === "UNAUTHORIZED") redirect("/logout?next=/login");
+      if (error.code === "UNAUTHORIZED") redirect("/login");
       if (error.code === "RFQ_NOT_FOUND") {
         await setFlashNotice("/requests", "rfq_not_found");
         redirect("/requests");
@@ -101,7 +101,7 @@ async function assignPricingUserAction(formData: FormData) {
       if (error.code === "FORBIDDEN") noticeCode = "assignment_forbidden";
       if (error.code === "INVALID_REQUEST") noticeCode = "assignment_invalid";
       if (error.code === "NETWORK_ERROR") noticeCode = "api_unreachable";
-      if (error.code === "UNAUTHORIZED") redirect("/logout?next=/login");
+      if (error.code === "UNAUTHORIZED") redirect("/login");
       if (error.code === "RFQ_NOT_FOUND") {
         await setFlashNotice("/requests", "rfq_not_found");
         redirect("/requests");
@@ -162,7 +162,7 @@ async function uploadRequestAttachmentsAction(formData: FormData) {
       if (error.code === "INVALID_REQUEST") noticeCode = "attachment_invalid";
       if (error.code === "FORBIDDEN") noticeCode = "attachment_forbidden";
       if (error.code === "NETWORK_ERROR" || error.code === "STORAGE_ERROR") noticeCode = "api_unreachable";
-      if (error.code === "UNAUTHORIZED") redirect("/logout?next=/login");
+      if (error.code === "UNAUTHORIZED") redirect("/login");
       if (error.code === "RFQ_NOT_FOUND") {
         await setFlashNotice("/requests", "rfq_not_found");
         redirect("/requests");
@@ -250,7 +250,7 @@ async function createQuoteRevisionAction(formData: FormData) {
       if (error.code === "INVALID_REQUEST") noticeCode = "quote_create_invalid";
       if (error.code === "FORBIDDEN") noticeCode = "quote_create_forbidden";
       if (error.code === "NETWORK_ERROR") noticeCode = "api_unreachable";
-      if (error.code === "UNAUTHORIZED") redirect("/logout?next=/login");
+      if (error.code === "UNAUTHORIZED") redirect("/login");
       if (error.code === "RFQ_NOT_FOUND") {
         await setFlashNotice("/requests", "rfq_not_found");
         redirect("/requests");
@@ -295,7 +295,7 @@ async function decideApprovalAction(formData: FormData) {
       if (error.code === "FORBIDDEN") noticeCode = "approval_forbidden";
       if (error.code === "QUOTE_REVISION_NOT_FOUND" || error.code === "RFQ_NOT_FOUND") noticeCode = "approval_target_missing";
       if (error.code === "NETWORK_ERROR") noticeCode = "api_unreachable";
-      if (error.code === "UNAUTHORIZED") redirect("/logout?next=/login");
+      if (error.code === "UNAUTHORIZED") redirect("/login");
     }
 
     await setFlashNotice(`/requests/${rfqId}`, noticeCode);
@@ -384,7 +384,7 @@ export default async function RequestDetailPage({
     record = await getRfqById(id);
   } catch (error) {
     if (isApiClientError(error) && error.code === "UNAUTHORIZED") {
-      redirect("/logout?next=/login");
+      redirect("/login");
     }
 
     record = null;
@@ -410,7 +410,7 @@ export default async function RequestDetailPage({
       pricingUsers = await getPricingUsers();
     } catch (error) {
       if (isApiClientError(error) && error.code === "UNAUTHORIZED") {
-        redirect("/logout?next=/login");
+        redirect("/login");
       }
     }
   }

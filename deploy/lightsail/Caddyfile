@@ -1,7 +1,19 @@
 {$APP_DOMAIN} {
   encode zstd gzip
 
-  handle /api/* {
+  handle /api/auth/* {
+    reverse_proxy web:3000
+  }
+
+  handle /api/flash/* {
+    reverse_proxy web:3000
+  }
+
+  handle /api/rfqs* {
+    reverse_proxy api:4000
+  }
+
+  handle /api/users* {
     reverse_proxy api:4000
   }
 

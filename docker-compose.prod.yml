@@ -26,6 +26,8 @@ services:
     environment:
       NODE_ENV: production
       API_BASE_URL: http://api:4000
+      NEXTAUTH_URL: ${APP_WEB_BASE_URL}
+      NEXTAUTH_SECRET: ${AUTH_JWT_SECRET}
 
   api:
     build:

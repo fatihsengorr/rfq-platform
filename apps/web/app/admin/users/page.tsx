@@ -31,7 +31,7 @@ async function createUserAction(formData: FormData) {
       if (error.code === "WEAK_PASSWORD") code = "weak_password";
       if (error.code === "FORBIDDEN") code = "admin_only";
       if (error.code === "NETWORK_ERROR") code = "api_unreachable";
-      if (error.code === "UNAUTHORIZED") redirect("/logout?next=/login");
+      if (error.code === "UNAUTHORIZED") redirect("/login");
     }
 
     await setFlashNotice("/admin/users", code);
@@ -61,7 +61,7 @@ async function resetPasswordAction(formData: FormData) {
       if (error.code === "WEAK_PASSWORD") code = "weak_password";
       if (error.code === "FORBIDDEN") code = "admin_only";
       if (error.code === "NETWORK_ERROR") code = "api_unreachable";
-      if (error.code === "UNAUTHORIZED") redirect("/logout?next=/login");
+      if (error.code === "UNAUTHORIZED") redirect("/login");
     }
 
     await setFlashNotice("/admin/users", code);
@@ -92,7 +92,7 @@ async function updateRoleAction(formData: FormData) {
     if (isApiClientError(error)) {
       if (error.code === "FORBIDDEN") code = "admin_only";
       if (error.code === "NETWORK_ERROR") code = "api_unreachable";
-      if (error.code === "UNAUTHORIZED") redirect("/logout?next=/login");
+      if (error.code === "UNAUTHORIZED") redirect("/login");
     }
 
     await setFlashNotice("/admin/users", code);
@@ -123,7 +123,7 @@ async function updateActiveAction(formData: FormData) {
     if (isApiClientError(error)) {
       if (error.code === "FORBIDDEN") code = "admin_only";
       if (error.code === "NETWORK_ERROR") code = "api_unreachable";
-      if (error.code === "UNAUTHORIZED") redirect("/logout?next=/login");
+      if (error.code === "UNAUTHORIZED") redirect("/login");
     }
 
     await setFlashNotice("/admin/users", code);
@@ -166,7 +166,7 @@ export default async function AdminUsersPage() {
     users = await getUsers();
   } catch (error) {
     if (isApiClientError(error) && error.code === "UNAUTHORIZED") {
-      redirect("/logout?next=/login");
+      redirect("/login");
     }
   }
 

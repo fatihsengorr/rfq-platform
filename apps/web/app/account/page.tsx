@@ -49,7 +49,7 @@ async function changePasswordAction(formData: FormData) {
       if (error.code === "WEAK_PASSWORD") redirect("/account?status=weak");
       if (error.code === "PASSWORD_MISMATCH") redirect("/account?status=current_invalid");
       if (error.code === "INVALID_REQUEST") redirect("/account?status=same_password");
-      if (error.code === "UNAUTHORIZED") redirect("/logout?next=/login");
+      if (error.code === "UNAUTHORIZED") redirect("/login");
       if (error.code === "NETWORK_ERROR") redirect("/account?status=network");
     }
 

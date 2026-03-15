@@ -116,7 +116,7 @@ export default async function HomePage() {
     rfqs = await getRfqs();
   } catch (error) {
     if (isApiClientError(error) && error.code === "UNAUTHORIZED") {
-      redirect("/logout?next=/login");
+      redirect("/login");
     }
 
     rfqs = [];

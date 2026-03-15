@@ -84,7 +84,7 @@ async function createRfqAction(formData: FormData) {
         createdNoticeCode = "rfq_created_with_files";
       } catch (error) {
         if (isApiClientError(error)) {
-          if (error.code === "UNAUTHORIZED") redirect("/logout?next=/login");
+          if (error.code === "UNAUTHORIZED") redirect("/login");
           if (error.code === "RFQ_NOT_FOUND") {
             await setFlashNotice("/requests", "rfq_not_found");
             redirect("/requests");
@@ -107,7 +107,7 @@ async function createRfqAction(formData: FormData) {
       if (error.code === "INVALID_REQUEST") noticeCode = "rfq_create_invalid";
       if (error.code === "FORBIDDEN") noticeCode = "rfq_create_forbidden";
       if (error.code === "NETWORK_ERROR") noticeCode = "api_unreachable";
-      if (error.code === "UNAUTHORIZED") redirect("/logout?next=/login");
+      if (error.code === "UNAUTHORIZED") redirect("/login");
     }
 
     await setFlashNotice("/requests/new", noticeCode);

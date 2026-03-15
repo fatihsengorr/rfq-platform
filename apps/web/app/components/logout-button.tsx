@@ -1,9 +1,17 @@
-import Link from "next/link";
+"use client";
+
+import { signOut } from "next-auth/react";
 
 export function LogoutButton() {
   return (
-    <Link href="/logout" className="secondary-btn">
+    <button
+      type="button"
+      className="secondary-btn"
+      onClick={() => {
+        void signOut({ callbackUrl: "/login" });
+      }}
+    >
       Sign Out
-    </Link>
+    </button>
   );
 }

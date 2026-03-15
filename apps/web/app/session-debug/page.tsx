@@ -4,10 +4,9 @@ import { getSession } from "../../lib/session";
 export default async function SessionDebugPage() {
   const cookieStore = await cookies();
   const headerStore = await headers();
-  const session = await getSession(cookieStore);
-  const combinedSession = cookieStore.get("rfq_session")?.value ?? null;
-  const accessToken = cookieStore.get("crm_access_token")?.value ?? null;
-  const userCookie = cookieStore.get("crm_user")?.value ?? null;
+  const session = await getSession();
+  const secureNextAuthToken = cookieStore.get("__Secure-next-auth.session-token")?.value ?? null;
+  const nextAuthToken = cookieStore.get("next-auth.session-token")?.value ?? null;
   const probeInsecure = cookieStore.get("probe_insecure")?.value ?? null;
   const probeSecure = cookieStore.get("probe_secure")?.value ?? null;
   const probeHttpOnly = cookieStore.get("probe_http_only")?.value ?? null;
@@ -29,11 +28,10 @@ export default async function SessionDebugPage() {
             ["x-forwarded-host", headerStore.get("x-forwarded-host") ?? "-"],
             ["x-forwarded-proto", headerStore.get("x-forwarded-proto") ?? "-"],
             ["cookie header present", headerStore.get("cookie") ? "yes" : "no"],
-            ["rfq_session present", combinedSession ? "yes" : "no"],
-            ["rfq_session length", combinedSession ? String(combinedSession.length) : "0"],
-            ["crm_access_token present", accessToken ? "yes" : "no"],
-            ["crm_access_token length", accessToken ? String(accessToken.length) : "0"],
-            ["crm_user present", userCookie ? "yes" : "no"],
+            ["__Secure-next-auth.session-token present", secureNextAuthToken ? "yes" : "no"],
+            ["__Secure-next-auth.session-token length", secureNextAuthToken ? String(secureNextAuthToken.length) : "0"],
+            ["next-auth.session-token present", nextAuthToken ? "yes" : "no"],
+            ["next-auth.session-token length", nextAuthToken ? String(nextAuthToken.length) : "0"],
             ["probe_insecure present", probeInsecure ? "yes" : "no"],
             ["probe_secure present", probeSecure ? "yes" : "no"],
             ["probe_http_only present", probeHttpOnly ? "yes" : "no"],
