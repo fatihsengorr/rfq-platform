@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { LogIn } from "lucide-react";
 
 type LoginFormProps = {
   callbackUrl: string;
@@ -21,8 +25,7 @@ export function LoginForm({ callbackUrl, initialError }: LoginFormProps) {
 
   return (
     <form
-      className="rfq-form clean-form"
-      style={{ gridTemplateColumns: "1fr" }}
+      className="grid gap-4"
       onSubmit={async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
@@ -54,20 +57,42 @@ export function LoginForm({ callbackUrl, initialError }: LoginFormProps) {
         window.location.assign(result.url ?? callbackUrl);
       }}
     >
-      <label>
-        <span>Email</span>
-        <input name="email" type="email" autoComplete="email" required disabled={isSubmitting} />
-      </label>
-      <label>
-        <span>Password</span>
-        <input name="password" type="password" autoComplete="current-password" required disabled={isSubmitting} />
-      </label>
+      <div className="grid gap-2">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          placeholder="you@company.com"
+          required
+          disabled={isSubmitting}
+        />
+      </div>
 
-      {errorMessage && <p className="notice notice-error">{errorMessage}</p>}
+      <div className="grid gap-2">
+        <Label htmlFor="password">Password</Label>
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          placeholder="Enter your password"
+          required
+          disabled={isSubmitting}
+        />
+      </div>
 
-      <button type="submit" className="primary-btn" disabled={isSubmitting}>
+      {errorMessage && (
+        <div className="rounded-lg border border-danger/30 bg-danger/5 px-3 py-2 text-sm font-semibold text-danger">
+          {errorMessage}
+        </div>
+      )}
+
+      <Button type="submit" disabled={isSubmitting} className="w-full">
+        <LogIn className="size-4" />
         {isSubmitting ? "Signing In..." : "Sign In"}
-      </button>
+      </Button>
     </form>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
 type NoticeTone = "success" | "warn" | "error";
 
@@ -15,8 +16,6 @@ type FlashNoticeProps = {
 };
 
 export function FlashNotice({ path, notices }: FlashNoticeProps) {
-  const [notice, setNotice] = useState<NoticeDefinition | null>(null);
-
   useEffect(() => {
     let active = true;
 
@@ -39,7 +38,13 @@ export function FlashNotice({ path, notices }: FlashNoticeProps) {
         const resolved = notices[payload.code];
 
         if (resolved) {
-          setNotice(resolved);
+          if (resolved.tone === "success") {
+            toast.success(resolved.text);
+          } else if (resolved.tone === "error") {
+            toast.error(resolved.text);
+          } else {
+            toast.warning(resolved.text);
+          }
         }
       } catch {
         // Ignore flash-fetch errors in UI.
@@ -53,9 +58,5 @@ export function FlashNotice({ path, notices }: FlashNoticeProps) {
     };
   }, [notices, path]);
 
-  if (!notice) {
-    return null;
-  }
-
-  return <p className={`notice notice-${notice.tone}`}>{notice.text}</p>;
+  return null;
 }

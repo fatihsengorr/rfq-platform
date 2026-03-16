@@ -1,48 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { isApiClientError, requestPasswordReset } from "../api";
 import { getSession } from "../../lib/session";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowLeft } from "lucide-react";
+import { ForgotPasswordForm } from "./forgot-password-form";
 
 type ForgotSearchParams = Promise<{ status?: string; token?: string }>;
-
-function resolveNotice(status?: string) {
-  if (!status) return null;
-  if (status === "sent") {
-    return {
-      tone: "notice-success",
-      text: "If the account exists and is active, reset instructions have been issued."
-    };
-  }
-
-  if (status === "network") return { tone: "notice-error", text: "API is unreachable." };
-  return { tone: "notice-error", text: "Password reset request failed." };
-}
-
-async function forgotPasswordAction(formData: FormData) {
-  "use server";
-
-  const email = String(formData.get("email") ?? "").trim();
-
-  if (!email) {
-    redirect("/forgot-password?status=failed");
-  }
-
-  try {
-    const result = await requestPasswordReset(email);
-
-    if (result.debugResetToken) {
-      redirect(`/forgot-password?status=sent&token=${encodeURIComponent(result.debugResetToken)}`);
-    }
-
-    redirect("/forgot-password?status=sent");
-  } catch (error) {
-    if (isApiClientError(error) && error.code === "NETWORK_ERROR") {
-      redirect("/forgot-password?status=network");
-    }
-
-    redirect("/forgot-password?status=failed");
-  }
-}
 
 export default async function ForgotPasswordPage({ searchParams }: { searchParams: ForgotSearchParams }) {
   const session = await getSession();
@@ -52,45 +15,42 @@ export default async function ForgotPasswordPage({ searchParams }: { searchParam
   }
 
   const params = await searchParams;
-  const notice = resolveNotice(params.status);
 
   return (
-    <main className="shell">
-      <section className="panel" style={{ maxWidth: 620, margin: "3rem auto" }}>
-        <h1>Forgot Password</h1>
-        <p>Enter your account email. If valid, a reset token will be generated.</p>
+    <main className="min-h-screen flex items-center justify-center p-4 bg-background">
+      <Card className="w-full max-w-lg">
+        <CardHeader>
+          <CardTitle className="text-xl">Forgot Password</CardTitle>
+          <CardDescription>
+            Enter your account email. If valid, a reset token will be generated.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ForgotPasswordForm />
 
-        {notice && <p className={`notice ${notice.tone}`}>{notice.text}</p>}
+          {params.token && (
+            <Card className="mt-4 bg-muted">
+              <CardContent className="p-4">
+                <p className="font-bold text-sm">Development Token</p>
+                <p className="text-sm text-muted-foreground">Use this token in the reset form below.</p>
+                <code className="mt-1 block text-sm bg-card border border-border rounded px-2 py-1 break-all">
+                  {params.token}
+                </code>
+              </CardContent>
+            </Card>
+          )}
 
-        <form action={forgotPasswordAction} className="rfq-form clean-form" style={{ gridTemplateColumns: "1fr", marginTop: "0.8rem" }}>
-          <label>
-            <span>Email</span>
-            <input name="email" type="email" required />
-          </label>
-          <button type="submit" className="primary-btn">
-            Request Reset
-          </button>
-        </form>
-
-        {params.token && (
-          <div className="panel" style={{ marginTop: "1rem" }}>
-            <strong>Development Token</strong>
-            <p>Use this token in the reset form below.</p>
-            <code>{params.token}</code>
+          <div className="mt-4 grid gap-1">
+            <Link href="/reset-password" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+              I already have a reset token
+            </Link>
+            <Link href="/login" className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
+              <ArrowLeft className="size-3" />
+              Back to sign in
+            </Link>
           </div>
-        )}
-
-        <p style={{ marginTop: "1rem" }}>
-          <Link href="/reset-password" className="ghost-link">
-            I already have a reset token
-          </Link>
-        </p>
-        <p>
-          <Link href="/login" className="ghost-link">
-            Back to sign in
-          </Link>
-        </p>
-      </section>
+        </CardContent>
+      </Card>
     </main>
   );
 }

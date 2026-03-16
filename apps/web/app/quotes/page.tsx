@@ -1,117 +1,31 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getRfqs, isApiClientError } from "../api";
-import { statusLabel, type RfqRecord, type QuoteRevision } from "../data";
+import { type RfqRecord } from "../data";
 import { getSession, type SessionUser } from "../../lib/session";
-
-type QuoteStatus = QuoteRevision["status"];
-type Currency = QuoteRevision["currency"];
-
-type QuoteRow = {
-  versionNumber: number;
-  currency: Currency;
-  totalAmount: number;
-  quoteStatus: QuoteStatus;
-  createdBy: string;
-  createdAt: string;
-};
-
-type ProjectQuoteGroup = {
-  rfqId: string;
-  projectName: string;
-  requestedBy: string;
-  rfqStatus: RfqRecord["status"];
-  latestCreatedAt: string;
-  rows: QuoteRow[];
-};
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ExternalLink, Filter } from "lucide-react";
+import {
+  type QuoteStatus,
+  type Currency,
+  quoteStatuses,
+  currencies,
+  flattenQuoteRows,
+  groupQuoteRows,
+  buildQuotesHref
+} from "./helpers";
 
 function roleSummary(role: SessionUser["role"]) {
-  if (role === "LONDON_SALES") {
-    return "Approved quote revisions are visible for London office.";
-  }
-
-  if (role === "ISTANBUL_PRICING") {
-    return "Quote revisions for your assigned RFQs are listed here.";
-  }
-
-  if (role === "ISTANBUL_MANAGER") {
-    return "Review submitted, approved, rejected, and draft quote revisions.";
-  }
-
+  if (role === "LONDON_SALES") return "Approved quote revisions are visible for London office.";
+  if (role === "ISTANBUL_PRICING") return "Quote revisions for your assigned RFQs are listed here.";
+  if (role === "ISTANBUL_MANAGER") return "Review submitted, approved, rejected, and draft quote revisions.";
   return "Full quote visibility across all offices and statuses.";
-}
-
-function flattenQuoteRows(rfqs: RfqRecord[]): QuoteRow[] {
-  return rfqs
-    .flatMap((rfq) =>
-      rfq.quoteRevisions.map((revision) => ({
-        versionNumber: revision.versionNumber,
-        currency: revision.currency,
-        totalAmount: revision.totalAmount,
-        quoteStatus: revision.status,
-        createdBy: revision.createdBy,
-        createdAt: revision.createdAt
-      }))
-    )
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-}
-
-function groupQuoteRows(rfqs: RfqRecord[], statusFilter: QuoteStatus | "", currencyFilter: Currency | ""): ProjectQuoteGroup[] {
-  return rfqs
-    .map((rfq) => {
-      const rows = rfq.quoteRevisions
-        .map((revision) => ({
-          versionNumber: revision.versionNumber,
-          currency: revision.currency,
-          totalAmount: revision.totalAmount,
-          quoteStatus: revision.status,
-          createdBy: revision.createdBy,
-          createdAt: revision.createdAt
-        }))
-        .filter((row) => {
-          if (statusFilter && row.quoteStatus !== statusFilter) return false;
-          if (currencyFilter && row.currency !== currencyFilter) return false;
-          return true;
-        })
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-      if (rows.length === 0) {
-        return null;
-      }
-
-      return {
-        rfqId: rfq.id,
-        projectName: rfq.projectName,
-        requestedBy: rfq.requestedBy,
-        rfqStatus: rfq.status,
-        latestCreatedAt: rows[0].createdAt,
-        rows
-      };
-    })
-    .filter((group): group is ProjectQuoteGroup => group !== null)
-    .sort((a, b) => new Date(b.latestCreatedAt).getTime() - new Date(a.latestCreatedAt).getTime());
-}
-
-const quoteStatuses: QuoteStatus[] = ["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"];
-const currencies: Currency[] = ["GBP", "EUR", "USD", "TRY"];
-
-function buildQuotesHref(statusFilter: QuoteStatus | "", currencyFilter: Currency | "", rfqId?: string): string {
-  const query = new URLSearchParams();
-
-  if (statusFilter) {
-    query.set("status", statusFilter);
-  }
-
-  if (currencyFilter) {
-    query.set("currency", currencyFilter);
-  }
-
-  if (rfqId) {
-    query.set("rfqId", rfqId);
-  }
-
-  const serialized = query.toString();
-  return serialized ? `/quotes?${serialized}` : "/quotes";
 }
 
 export default async function QuotesPage({
@@ -127,14 +41,19 @@ export default async function QuotesPage({
 
   let rfqs: RfqRecord[] = [];
 
+  let quotesRedirect = "";
+
   try {
     rfqs = await getRfqs();
   } catch (error) {
     if (isApiClientError(error) && error.code === "UNAUTHORIZED") {
-      redirect("/login");
+      quotesRedirect = "/login";
     }
-
     rfqs = [];
+  }
+
+  if (quotesRedirect) {
+    redirect(quotesRedirect);
   }
 
   const params = await searchParams;
@@ -150,126 +69,143 @@ export default async function QuotesPage({
   const selectedGroup = groupedRows.find((group) => group.rfqId === selectedRfqId) ?? null;
 
   return (
-    <main className="shell">
-      <header className="page-header">
-        <h1>Quotes</h1>
-        <p>{roleSummary(session.user.role)}</p>
-      </header>
+    <main className="w-full max-w-[1180px] mx-auto px-4 py-6">
+      <PageHeader
+        title="Quotes"
+        description={roleSummary(session.user.role)}
+      />
 
-      <section className="panel">
-        <div className="panel-title-row">
-          <h2>Filters</h2>
-          <span className="inline-hint">
-            Total revisions: {allRows.length} | Showing: {shownRows}
-          </span>
-        </div>
-
-        <form className="rfq-form clean-form" method="get" style={{ gridTemplateColumns: "1fr 1fr auto" }}>
-          {selectedRfqId && <input type="hidden" name="rfqId" value={selectedRfqId} />}
-          <label>
-            <span>Quote Status</span>
-            <select name="status" defaultValue={statusFilter}>
-              <option value="">All</option>
-              {quoteStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>Currency</span>
-            <select name="currency" defaultValue={currencyFilter}>
-              <option value="">All</option>
-              {currencies.map((currency) => (
-                <option key={currency} value={currency}>
-                  {currency}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button type="submit" className="primary-btn" style={{ alignSelf: "end" }}>
-            Apply
-          </button>
-        </form>
-      </section>
-
-      <section className="panel quotes-workspace">
-        <aside className="quotes-master">
-          <div className="panel-title-row">
-            <h2>Projects</h2>
-            <span className="inline-hint">{groupedRows.length} listed</span>
-          </div>
-
-          {groupedRows.length === 0 ? (
-            <p className="quotes-empty">No projects found for this filter.</p>
-          ) : (
-            <div className="quotes-project-list">
-              {groupedRows.map((group) => {
-                const isActive = group.rfqId === selectedRfqId;
-                const latestRevision = group.rows[0];
-
-                return (
-                  <a href={buildQuotesHref(statusFilter, currencyFilter, group.rfqId)} key={group.rfqId} className={`quotes-project-link${isActive ? " is-active" : ""}`}>
-                    <strong>{group.projectName}</strong>
-                    <span className="quotes-project-sub">Requested by {group.requestedBy}</span>
-                    <span className="quotes-project-sub">
-                      Revisions: {group.rows.length} | Latest: V{latestRevision.versionNumber}
-                    </span>
-                  </a>
-                );
-              })}
+      {/* ── Filters ──────────────────────── */}
+      <Card className="mt-4">
+        <CardContent className="p-4">
+          <form method="get" className="flex flex-wrap items-end gap-4">
+            {selectedRfqId && <input type="hidden" name="rfqId" value={selectedRfqId} />}
+            <div className="grid gap-1">
+              <Label className="text-xs">Quote Status</Label>
+              <select
+                name="status"
+                defaultValue={statusFilter}
+                className="h-9 rounded-lg border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">All</option>
+                {quoteStatuses.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
             </div>
-          )}
-        </aside>
+            <div className="grid gap-1">
+              <Label className="text-xs">Currency</Label>
+              <select
+                name="currency"
+                defaultValue={currencyFilter}
+                className="h-9 rounded-lg border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">All</option>
+                {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <Button type="submit" size="sm">
+              <Filter className="size-4" />
+              Apply
+            </Button>
+            <Badge variant="outline" className="self-end">
+              Total: {allRows.length} | Showing: {shownRows}
+            </Badge>
+          </form>
+        </CardContent>
+      </Card>
 
-        <article className="quotes-detail">
-          {!selectedGroup ? (
-            <p className="quotes-empty">Select a project to view quote revisions.</p>
-          ) : (
-            <>
-              <div className="quotes-detail-head">
-                <div>
-                  <h2>{selectedGroup.projectName}</h2>
-                  <p className="quotes-detail-sub">Requested by {selectedGroup.requestedBy}</p>
-                </div>
-                <div style={{ display: "flex", gap: "0.6rem", alignItems: "center", flexWrap: "wrap" }}>
-                  <span className={`status-pill status-${selectedGroup.rfqStatus}`}>{statusLabel(selectedGroup.rfqStatus)}</span>
-                  <Link href={`/requests/${selectedGroup.rfqId}`} className="ghost-link">
-                    Open request
-                  </Link>
-                </div>
+      {/* ── Split Pane ───────────────────── */}
+      <div className="mt-4 grid lg:grid-cols-[320px_1fr] gap-4">
+        {/* Left — project list */}
+        <Card>
+          <CardHeader className="flex-row items-center justify-between p-4">
+            <CardTitle className="text-base">Projects</CardTitle>
+            <Badge variant="outline">{groupedRows.length} listed</Badge>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            {groupedRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No projects found for this filter.</p>
+            ) : (
+              <div className="grid gap-2">
+                {groupedRows.map((group) => {
+                  const isActive = group.rfqId === selectedRfqId;
+                  const latestRevision = group.rows[0];
+
+                  return (
+                    <a
+                      href={buildQuotesHref(statusFilter, currencyFilter, group.rfqId)}
+                      key={group.rfqId}
+                      className={`block rounded-lg border p-3 transition-all hover:-translate-y-0.5 hover:shadow-md ${
+                        isActive
+                          ? "border-primary bg-primary/5 shadow-sm"
+                          : "border-border hover:border-primary/40"
+                      }`}
+                    >
+                      <p className="font-semibold text-sm leading-tight">{group.projectName}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Requested by {group.requestedBy}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Revisions: {group.rows.length} | Latest: V{latestRevision.versionNumber}
+                      </p>
+                    </a>
+                  );
+                })}
               </div>
+            )}
+          </CardContent>
+        </Card>
 
-              <div className="data-table">
-                <div className="data-head quotes-group-grid">
-                  <span>Revision</span>
-                  <span>Amount</span>
-                  <span>Quote Status</span>
-                  <span>Created By</span>
-                  <span>Created At</span>
+        {/* Right — quote detail */}
+        <Card>
+          <CardContent className="p-4">
+            {!selectedGroup ? (
+              <p className="text-sm text-muted-foreground">Select a project to view quote revisions.</p>
+            ) : (
+              <>
+                <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
+                  <div>
+                    <h2 className="text-lg font-bold">{selectedGroup.projectName}</h2>
+                    <p className="text-sm text-muted-foreground">Requested by {selectedGroup.requestedBy}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={selectedGroup.rfqStatus} />
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href={`/requests/${selectedGroup.rfqId}`}>
+                        Open request <ExternalLink className="size-3" />
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
 
-                {selectedGroup.rows.map((row) => (
-                  <Link
-                    href={`/requests/${selectedGroup.rfqId}`}
-                    key={`${selectedGroup.rfqId}-${row.versionNumber}-${row.createdAt}`}
-                    className="data-row quotes-group-grid"
-                  >
-                    <span>V{row.versionNumber}</span>
-                    <span>
-                      {row.currency} {row.totalAmount.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                    <span className={`status-pill status-${row.quoteStatus}`}>{row.quoteStatus}</span>
-                    <span>{row.createdBy}</span>
-                    <span>{new Date(row.createdAt).toLocaleString("en-GB")}</span>
-                  </Link>
-                ))}
-              </div>
-            </>
-          )}
-        </article>
-      </section>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Revision</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created By</TableHead>
+                      <TableHead>Created At</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedGroup.rows.map((row) => (
+                      <TableRow key={`${selectedGroup.rfqId}-${row.versionNumber}-${row.createdAt}`}>
+                        <TableCell className="font-semibold">V{row.versionNumber}</TableCell>
+                        <TableCell>
+                          {row.currency} {row.totalAmount.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell><StatusBadge status={row.quoteStatus} /></TableCell>
+                        <TableCell className="text-sm">{row.createdBy}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {new Date(row.createdAt).toLocaleString("en-GB")}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </main>
   );
 }

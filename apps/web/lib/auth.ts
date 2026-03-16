@@ -43,14 +43,21 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ email, password }),
-          cache: "no-store"
-        });
+        let response: Response;
+
+        try {
+          response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ email, password }),
+            cache: "no-store"
+          });
+        } catch {
+          // API unreachable — network error
+          return null;
+        }
 
         if (!response.ok) {
           return null;

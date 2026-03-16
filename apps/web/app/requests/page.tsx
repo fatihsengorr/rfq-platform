@@ -4,6 +4,13 @@ import { getRfqs, isApiClientError } from "../api";
 import { FlashNotice } from "../components/flash-notice";
 import { latestQuoteLabel, statusLabel, type RfqRecord } from "../data";
 import { getSession, type SessionUser } from "../../lib/session";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Plus } from "lucide-react";
 
 const requestNotices = {
   rfq_create_failed: {
@@ -57,67 +64,78 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
     if (isApiClientError(error) && error.code === "UNAUTHORIZED") {
       redirect("/login");
     }
-
     rfqs = [];
   }
 
   const rows = focus === "approval" ? rfqs.filter((item) => item.status === "PENDING_MANAGER_APPROVAL") : rfqs;
 
   return (
-    <main className="shell">
-      <header className="page-header">
-        <h1>RFQ Requests</h1>
-        <p>{roleSummary(session.user.role)}</p>
-      </header>
+    <main className="w-full max-w-[1180px] mx-auto px-4 py-6">
+      <PageHeader
+        title="RFQ Requests"
+        description={roleSummary(session.user.role)}
+      />
 
       <FlashNotice path="/requests" notices={requestNotices} />
 
       {canCreateRfq && (
-        <section className="panel">
-          <div className="panel-title-row">
-            <h2>Create New RFQ</h2>
-            <span className="inline-hint">London users and admin can create requests.</span>
-          </div>
-          <div>
-            <Link href="/requests/new" className="primary-btn">
-              Go to New Request Form
-            </Link>
-          </div>
-        </section>
+        <Card className="mt-4">
+          <CardContent className="flex items-center justify-between p-4">
+            <div>
+              <p className="font-semibold">Create New RFQ</p>
+              <p className="text-sm text-muted-foreground">London users and admin can create requests.</p>
+            </div>
+            <Button asChild>
+              <Link href="/requests/new"><Plus className="size-4" />New Request</Link>
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
-      <section className="panel">
-        <div className="panel-title-row">
-          <h2>Request List</h2>
-          <span className="inline-hint">{focus === "approval" ? "Filtered: pending manager approval" : `Total: ${rows.length}`}</span>
-        </div>
-
-        {rows.length === 0 ? (
-          <p>No records found or API is unreachable.</p>
-        ) : (
-          <div className="data-table">
-            <div className="data-head requests-grid">
-              <span>Project</span>
-              <span>Requested By</span>
-              <span>Assigned Pricing</span>
-              <span>Deadline</span>
-              <span>Status</span>
-              <span>Latest Quote</span>
-            </div>
-
-            {rows.map((item) => (
-              <Link href={`/requests/${item.id}`} key={item.id} className="data-row requests-grid">
-                <span>{item.projectName}</span>
-                <span>{item.requestedBy}</span>
-                <span>{item.assignedPricingUser ?? "-"}</span>
-                <span>{new Date(item.deadline).toLocaleString("en-GB")}</span>
-                <span className={`status-pill status-${item.status}`}>{statusLabel(item.status)}</span>
-                <span>{latestQuoteLabel(item)}</span>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
+      <Card className="mt-4">
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle>Request List</CardTitle>
+          <Badge variant="outline">
+            {focus === "approval" ? "Filtered: pending manager approval" : `Total: ${rows.length}`}
+          </Badge>
+        </CardHeader>
+        <CardContent>
+          {rows.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No records found or API is unreachable.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Requested By</TableHead>
+                  <TableHead>Assigned Pricing</TableHead>
+                  <TableHead>Deadline</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Latest Quote</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <Link href={`/requests/${item.id}`} className="font-semibold hover:text-primary transition-colors">
+                        {item.projectName}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-sm">{item.requestedBy}</TableCell>
+                    <TableCell className="text-sm">{item.assignedPricingUser ?? <span className="text-muted-foreground">—</span>}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(item.deadline).toLocaleString("en-GB")}
+                    </TableCell>
+                    <TableCell><StatusBadge status={item.status} /></TableCell>
+                    <TableCell className="text-sm">{latestQuoteLabel(item)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </main>
   );
 }
