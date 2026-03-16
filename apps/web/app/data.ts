@@ -54,6 +54,11 @@ export type RfqRecord = {
   approvals: Approval[];
 };
 
+export const rfqStatuses: RfqStatus[] = [
+  "NEW", "IN_REVIEW", "PRICING_IN_PROGRESS",
+  "PENDING_MANAGER_APPROVAL", "QUOTED", "REVISION_REQUESTED", "CLOSED"
+];
+
 export function statusLabel(status: RfqStatus) {
   const labels: Record<RfqStatus, string> = {
     NEW: "New",

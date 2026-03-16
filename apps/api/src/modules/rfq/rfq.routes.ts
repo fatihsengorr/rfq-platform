@@ -6,6 +6,12 @@ import { extractBearerToken, resolveAccessToken } from "../auth/auth.service.js"
 import { rfqStore } from "./rfq.store.js";
 import { downloadAttachmentFromStorage, uploadAttachmentToStorage } from "./storage.js";
 import { type UserRole as RfqRole } from "./rfq.types.js";
+import { sendNotification } from "../email/email.service.js";
+import {
+  assignmentNotification,
+  quoteSubmittedNotification,
+  approvalDecisionNotification,
+} from "../email/email.templates.js";
 
 const createRfqSchema = z.object({
   projectName: z.string().min(2),
@@ -299,6 +305,14 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
         assignedById: session.user.id
       });
 
+      // Email: notify assigned pricing user
+      const assignee = await rfqStore.getUserEmail(parsed.data.assignedPricingUserId);
+      if (assignee) {
+        const webBase = process.env.APP_WEB_BASE_URL ?? "http://localhost:3000";
+        const tpl = assignmentNotification(updated.projectName, session.user.fullName, `${webBase}/requests/${params.data.id}`);
+        sendNotification({ type: "ASSIGNMENT", recipientId: assignee.id, recipientEmail: assignee.email, rfqId: params.data.id, ...tpl });
+      }
+
       return reply.status(200).send(updated);
     } catch (error) {
       return sendError(reply, error);
@@ -344,6 +358,19 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
         createdByRole: role
       });
 
+      // Email: notify managers when quote is submitted for approval
+      if (parsed.data.autoSubmitForApproval) {
+        const managers = await rfqStore.getManagerUsers();
+        const rfqDetail = await rfqStore.getById(params.data.id, "ADMIN", "");
+        const webBase = process.env.APP_WEB_BASE_URL ?? "http://localhost:3000";
+        const rfqUrl = `${webBase}/requests/${params.data.id}`;
+        const projectName = rfqDetail?.projectName ?? "RFQ";
+        for (const mgr of managers) {
+          const tpl = quoteSubmittedNotification(projectName, created.versionNumber, session.user.fullName, rfqUrl);
+          sendNotification({ type: "QUOTE_SUBMITTED", recipientId: mgr.id, recipientEmail: mgr.email, rfqId: params.data.id, ...tpl });
+        }
+      }
+
       return reply.status(201).send(created);
     } catch (error) {
       return sendError(reply, error);
@@ -387,6 +414,36 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
         ...parsed.data,
         decidedById: session.user.id
       });
+
+      // Email: notify pricing user + RFQ creator about the decision
+      const rfqDetail = await rfqStore.getById(params.data.id, "ADMIN", "");
+      if (rfqDetail) {
+        const webBase = process.env.APP_WEB_BASE_URL ?? "http://localhost:3000";
+        const rfqUrl = `${webBase}/requests/${params.data.id}`;
+        const latestRevision = [...rfqDetail.quoteRevisions].sort((a, b) => b.versionNumber - a.versionNumber)[0];
+        const versionNumber = latestRevision?.versionNumber ?? 1;
+
+        const recipientIds = new Set<string>();
+
+        // Notify assigned pricing user
+        if (rfqDetail.assignedPricingUserId) {
+          recipientIds.add(rfqDetail.assignedPricingUserId);
+        }
+
+        // Notify RFQ creator
+        const creatorId = await rfqStore.getRfqCreatorId(params.data.id);
+        if (creatorId) {
+          recipientIds.add(creatorId);
+        }
+
+        for (const recipientId of recipientIds) {
+          const user = await rfqStore.getUserEmail(recipientId);
+          if (user) {
+            const tpl = approvalDecisionNotification(rfqDetail.projectName, versionNumber, parsed.data.decision, parsed.data.comment, session.user.fullName, rfqUrl);
+            sendNotification({ type: "APPROVAL_DECISION", recipientId: user.id, recipientEmail: user.email, rfqId: params.data.id, ...tpl });
+          }
+        }
+      }
 
       return reply.status(200).send(decision);
     } catch (error) {

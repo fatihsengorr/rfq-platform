@@ -55,6 +55,7 @@ model User {
   rfqsAssignedBy       Rfq[]           @relation("rfq_assigned_by_user")
   passwordResetTokens  PasswordResetToken[]
   sessions             Session[]
+  notifications        Notification[] @relation("notification_recipient")
 }
 
 model Rfq {
@@ -77,6 +78,7 @@ model Rfq {
 
   attachments    Attachment[]
   quoteRevisions QuoteRevision[]
+  notifications  Notification[]
 }
 
 model QuoteRevision {
@@ -175,6 +177,24 @@ model Lead {
 
   ownerId           String
   owner             User             @relation("lead_owner", fields: [ownerId], references: [id])
+}
+
+model Notification {
+  id           String    @id @default(uuid())
+  type         String
+  recipientId  String
+  recipient    User      @relation("notification_recipient", fields: [recipientId], references: [id])
+  rfqId        String?
+  rfq          Rfq?      @relation(fields: [rfqId], references: [id])
+  subject      String
+  body         String
+  sentAt       DateTime?
+  failedAt     DateTime?
+  errorMessage String?
+  createdAt    DateTime  @default(now())
+
+  @@index([recipientId, createdAt])
+  @@index([rfqId])
 }
 
 model PasswordResetToken {

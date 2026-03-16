@@ -9,6 +9,8 @@ import { KpiCard } from "@/components/ui/kpi-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DeadlineBadge } from "@/components/ui/deadline-badge";
+import { getDeadlineUrgency } from "@/lib/deadline";
 import { ArrowRight, Plus, ShieldCheck, Users } from "lucide-react";
 
 type MetricAccent = "primary" | "accent" | "muted";
@@ -46,11 +48,13 @@ function metricsForRole(role: SessionUser["role"], rfqs: RfqRecord[], userId: st
   const pendingApproval = rfqs.filter((item) => item.status === "PENDING_MANAGER_APPROVAL").length;
   const quoted = rfqs.filter((item) => item.status === "QUOTED").length;
   const assignedToMe = rfqs.filter((item) => item.assignedPricingUserId === userId).length;
+  const overdue = rfqs.filter((item) => item.status !== "CLOSED" && getDeadlineUrgency(item.deadline) === "overdue").length;
 
   if (role === "LONDON_SALES") {
     return [
       { label: "Open Requests", value: String(rfqs.filter((item) => item.status !== "CLOSED").length), accent: "primary" },
       { label: "Approved Quotes", value: String(quoted), accent: "accent" },
+      { label: "Overdue", value: String(overdue), accent: overdue > 0 ? "primary" : "muted" },
       { label: "Needs Revision", value: String(rfqs.filter((item) => item.status === "REVISION_REQUESTED").length), accent: "muted" }
     ];
   }
@@ -58,6 +62,7 @@ function metricsForRole(role: SessionUser["role"], rfqs: RfqRecord[], userId: st
     return [
       { label: "Assigned To Me", value: String(assignedToMe), accent: "primary" },
       { label: "Awaiting My Pricing", value: String(rfqs.filter((item) => item.status === "PRICING_IN_PROGRESS" && item.assignedPricingUserId === userId).length), accent: "accent" },
+      { label: "Overdue", value: String(overdue), accent: overdue > 0 ? "primary" : "muted" },
       { label: "Submitted For Approval", value: String(rfqs.filter((item) => item.status === "PENDING_MANAGER_APPROVAL" && item.assignedPricingUserId === userId).length), accent: "muted" }
     ];
   }
@@ -65,12 +70,14 @@ function metricsForRole(role: SessionUser["role"], rfqs: RfqRecord[], userId: st
     return [
       { label: "Pending Approval", value: String(pendingApproval), accent: "accent" },
       { label: "Unassigned RFQs", value: String(unassigned), accent: "primary" },
+      { label: "Overdue", value: String(overdue), accent: overdue > 0 ? "primary" : "muted" },
       { label: "Quoted", value: String(quoted), accent: "muted" }
     ];
   }
   return [
     { label: "Total RFQs", value: String(rfqs.length), accent: "primary" },
     { label: "Pending Approval", value: String(pendingApproval), accent: "accent" },
+    { label: "Overdue", value: String(overdue), accent: overdue > 0 ? "primary" : "muted" },
     { label: "Unassigned", value: String(unassigned), accent: "muted" }
   ];
 }
@@ -93,7 +100,9 @@ export default async function HomePage() {
     rfqs = [];
   }
 
-  const queue = queueForRole(session.user.role, rfqs, session.user.id).slice(0, 8);
+  const queue = queueForRole(session.user.role, rfqs, session.user.id)
+    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+    .slice(0, 8);
   const role = session.user.role;
   const canCreateRfq = role === "LONDON_SALES" || role === "ADMIN";
   const canReviewApprovals = role === "ISTANBUL_MANAGER" || role === "ADMIN";
@@ -133,7 +142,7 @@ export default async function HomePage() {
       </Card>
 
       {/* ── Metrics ──────────────────────── */}
-      <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
         {metricsForRole(session.user.role, rfqs, session.user.id).map((item) => (
           <KpiCard
             key={item.label}
@@ -172,8 +181,11 @@ export default async function HomePage() {
                         {item.projectName}
                       </Link>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(item.deadline).toLocaleString("en-GB")}
+                    <TableCell className="text-sm">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-muted-foreground">{new Date(item.deadline).toLocaleString("en-GB")}</span>
+                        {item.status !== "CLOSED" && <DeadlineBadge deadline={item.deadline} />}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={item.status} />

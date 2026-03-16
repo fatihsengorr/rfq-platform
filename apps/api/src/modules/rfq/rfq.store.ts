@@ -568,6 +568,28 @@ export class RfqStore {
     return false;
   }
 
+  async getUserEmail(userId: string): Promise<{ id: string; email: string; fullName: string } | null> {
+    return prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, fullName: true },
+    });
+  }
+
+  async getManagerUsers(): Promise<Array<{ id: string; email: string; fullName: string }>> {
+    return prisma.user.findMany({
+      where: { role: DbUserRole.ISTANBUL_MANAGER, isActive: true },
+      select: { id: true, email: true, fullName: true },
+    });
+  }
+
+  async getRfqCreatorId(rfqId: string): Promise<string | null> {
+    const rfq = await prisma.rfq.findUnique({
+      where: { id: rfqId },
+      select: { createdById: true },
+    });
+    return rfq?.createdById ?? null;
+  }
+
   async listPricingUsers() {
     const rows = await prisma.user.findMany({
       where: {
