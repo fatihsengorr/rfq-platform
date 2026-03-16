@@ -44,7 +44,7 @@ services:
       HOST: 0.0.0.0
       PORT: 4000
     command: >
-      sh -c "pnpm prisma migrate deploy && pnpm start"
+      sh -c "./node_modules/.bin/prisma migrate deploy --schema ./prisma/schema.prisma && node dist/main.js"
 
   postgres:
     image: postgres:16-alpine
