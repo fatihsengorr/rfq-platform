@@ -85,11 +85,8 @@ function SidebarBrand() {
   return (
     <div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/gorhan-logo-white.svg" alt="Gorhan" className="h-6 mb-2" />
-      <p className="text-[0.7rem] uppercase tracking-wider opacity-80">RFQ Platform</p>
-      <p className="text-sm text-sidebar-foreground/70 mt-0.5">
-        London & Istanbul workflow in one place.
-      </p>
+      <img src="/gorhan-logo-white.svg" alt="Gorhan" className="w-36 mb-3" />
+      <p className="text-xs uppercase tracking-widest opacity-70">RFQ Platform</p>
     </div>
   );
 }
