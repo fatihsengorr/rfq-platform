@@ -30,6 +30,8 @@ export default async function LoginPage({ searchParams }: { searchParams: LoginS
       <div className="w-full max-w-5xl grid lg:grid-cols-[1.15fr_minmax(340px,420px)] gap-6 items-stretch">
         {/* ── Showcase ─────────────────────────── */}
         <Card className="p-6 bg-gradient-to-br from-white via-background to-[#fff5e8] max-lg:hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/gorhan-logo.svg" alt="Gorhan" className="h-8 mb-3" />
           <p className="text-xs font-bold uppercase tracking-widest text-primary">
             RFQ Platform
           </p>

@@ -84,10 +84,11 @@ function SidebarNav({ items }: { items: Array<{ href: string; label: string }> }
 function SidebarBrand() {
   return (
     <div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/gorhan-logo-white.svg" alt="Gorhan" className="h-6 mb-2" />
       <p className="text-[0.7rem] uppercase tracking-wider opacity-80">RFQ Platform</p>
-      <h1 className="text-xl font-bold mt-1">Quote Ops</h1>
       <p className="text-sm text-sidebar-foreground/70 mt-0.5">
-        London and Istanbul workflow in one place.
+        London & Istanbul workflow in one place.
       </p>
     </div>
   );
