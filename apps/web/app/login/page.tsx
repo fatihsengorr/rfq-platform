@@ -82,6 +82,12 @@ export default async function LoginPage({ searchParams }: { searchParams: LoginS
         {/* ── Login Form ───────────────────────── */}
         <Card className="self-center">
           <CardHeader>
+            {/* Mobile logo - hidden on lg+ where showcase card is visible */}
+            <div className="flex flex-col items-center mb-4 lg:hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/gorhan-logo.svg" alt="Gorhan" className="w-40 mb-2" />
+              <p className="text-xs font-bold uppercase tracking-widest text-primary">RFQ Platform</p>
+            </div>
             <CardTitle className="text-xl">Sign In</CardTitle>
             <CardDescription>
               Use your assigned company account to access the platform.
