@@ -25,6 +25,31 @@ function button(url: string, label: string): string {
   return `<a href="${url}" style="display:inline-block;margin-top:16px;padding:10px 20px;background:#d4924b;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">${label}</a>`;
 }
 
+export function newRfqNotification(
+  projectName: string,
+  requestedBy: string,
+  deadline: string,
+  createdByName: string,
+  rfqUrl: string,
+): { subject: string; html: string } {
+  const deadlineDate = new Date(deadline).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
+
+  return {
+    subject: `New RFQ: ${projectName}`,
+    html: layout(
+      "A new RFQ has been created",
+      `<p style="margin:0;color:#4a3f35;font-size:14px;line-height:1.6">
+        <strong>${createdByName}</strong> has created a new request for <strong>${projectName}</strong>.
+      </p>
+      <div style="margin-top:12px;padding:12px;background:#faf6f1;border-radius:8px">
+        <p style="margin:0 0 4px;font-size:13px;color:#4a3f35"><strong>Requested by:</strong> ${requestedBy}</p>
+        <p style="margin:0;font-size:13px;color:#4a3f35"><strong>Deadline:</strong> ${deadlineDate}</p>
+      </div>
+      ${button(rfqUrl, "Review & Assign")}`,
+    ),
+  };
+}
+
 export function assignmentNotification(
   projectName: string,
   assignedByName: string,

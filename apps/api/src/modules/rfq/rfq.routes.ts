@@ -8,6 +8,7 @@ import { downloadAttachmentFromStorage, uploadAttachmentToStorage } from "./stor
 import { type UserRole as RfqRole } from "./rfq.types.js";
 import { sendNotification } from "../email/email.service.js";
 import {
+  newRfqNotification,
   assignmentNotification,
   quoteSubmittedNotification,
   approvalDecisionNotification,
@@ -223,6 +224,15 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
       requestedBy: payload.requestedBy,
       createdById: session.user.id
     });
+
+    // Email: notify Istanbul managers about new RFQ
+    const managers = await rfqStore.getManagerUsers();
+    const webBase = process.env.APP_WEB_BASE_URL ?? "http://localhost:3000";
+    const rfqUrl = `${webBase}/requests/${created.id}`;
+    for (const mgr of managers) {
+      const tpl = newRfqNotification(payload.projectName, payload.requestedBy, payload.deadline, session.user.fullName, rfqUrl);
+      sendNotification({ type: "NEW_RFQ", recipientId: mgr.id, recipientEmail: mgr.email, rfqId: created.id, ...tpl });
+    }
 
     return reply.status(201).send(created);
   });
