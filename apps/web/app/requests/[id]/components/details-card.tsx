@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FileText, Paperclip, Receipt, Clock } from "lucide-react";
+import { FilePreviewItem } from "@/components/ui/file-preview";
 
 type DetailTab = "overview" | "files" | "revisions" | "timeline";
 
@@ -75,42 +76,29 @@ export function DetailsCard({ record }: DetailsCardProps) {
         {activeTab === "files" && (
           <div className="grid sm:grid-cols-2 gap-6">
             <div>
-              <h3 className="font-bold text-sm mb-2">Request Files</h3>
+              <h3 className="font-bold text-sm mb-3">Request Files</h3>
               {record.attachments.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No request attachments yet.</p>
               ) : (
-                <ul className="grid gap-2">
+                <div className="grid gap-2">
                   {record.attachments.map((a) => (
-                    <li key={a.id} className="flex items-start gap-2 text-sm">
-                      <Paperclip className="size-3.5 mt-0.5 text-muted-foreground shrink-0" />
-                      <span>
-                        <a href={`/attachments/${a.id}`} target="_blank" rel="noreferrer" className="font-semibold hover:text-primary transition-colors">{a.fileName}</a>{" "}
-                        <span className="text-muted-foreground">({a.mimeType}) by {a.uploadedBy}</span>
-                      </span>
-                    </li>
+                    <FilePreviewItem key={a.id} attachment={a} />
                   ))}
-                </ul>
+                </div>
               )}
             </div>
             <div>
-              <h3 className="font-bold text-sm mb-2">Quote Files</h3>
+              <h3 className="font-bold text-sm mb-3">Quote Files</h3>
               {record.quoteRevisions.every((r) => r.attachments.length === 0) ? (
                 <p className="text-sm text-muted-foreground">No quote attachments visible.</p>
               ) : (
-                <ul className="grid gap-2">
+                <div className="grid gap-2">
                   {record.quoteRevisions.flatMap((r) =>
                     r.attachments.map((a) => (
-                      <li key={a.id} className="flex items-start gap-2 text-sm">
-                        <Paperclip className="size-3.5 mt-0.5 text-muted-foreground shrink-0" />
-                        <span>
-                          V{r.versionNumber}:{" "}
-                          <a href={`/attachments/${a.id}`} target="_blank" rel="noreferrer" className="font-semibold hover:text-primary transition-colors">{a.fileName}</a>{" "}
-                          <span className="text-muted-foreground">({a.mimeType}) by {a.uploadedBy}</span>
-                        </span>
-                      </li>
+                      <FilePreviewItem key={a.id} attachment={a} versionLabel={`V${r.versionNumber}`} />
                     ))
                   )}
-                </ul>
+                </div>
               )}
             </div>
           </div>
