@@ -12,6 +12,8 @@
     "prisma": "prisma"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1023.0",
+    "@aws-sdk/s3-request-presigner": "^3.1023.0",
     "@fastify/cors": "^10.0.1",
     "@prisma/client": "6.19.2",
     "fastify": "^5.0.0",

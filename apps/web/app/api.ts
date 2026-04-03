@@ -251,6 +251,37 @@ export async function uploadRfqAttachment(
   return postAuthenticated<Attachment>(`/api/rfqs/${rfqId}/attachments`, input);
 }
 
+export async function getPresignedUploadUrl(
+  rfqId: string,
+  input: {
+    fileName: string;
+    mimeType: string;
+    sizeBytes: number;
+    quoteRevisionId?: string;
+  }
+): Promise<{ uploadUrl: string; storageKey: string }> {
+  return postAuthenticated<{ uploadUrl: string; storageKey: string }>(`/api/rfqs/${rfqId}/attachments/presign-upload`, input);
+}
+
+export async function confirmUpload(
+  rfqId: string,
+  input: {
+    storageKey: string;
+    fileName: string;
+    mimeType: string;
+    sizeBytes: number;
+    quoteRevisionId?: string;
+  }
+): Promise<Attachment> {
+  return postAuthenticated<Attachment>(`/api/rfqs/${rfqId}/attachments/confirm-upload`, input);
+}
+
+export async function getPresignedDownloadUrl(
+  attachmentId: string,
+): Promise<{ downloadUrl: string; fileName: string; mimeType: string }> {
+  return request<{ downloadUrl: string; fileName: string; mimeType: string }>(`/api/rfqs/attachments/${attachmentId}/presign-download`) as Promise<{ downloadUrl: string; fileName: string; mimeType: string }>;
+}
+
 export async function getPricingUsers(): Promise<Array<{ id: string; fullName: string; email: string }>> {
   const result = await request<Array<{ id: string; fullName: string; email: string }>>("/api/rfqs/pricing-users");
   return result ?? [];

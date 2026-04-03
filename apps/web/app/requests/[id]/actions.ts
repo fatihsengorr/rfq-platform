@@ -8,7 +8,8 @@ import {
   decideQuoteApproval,
   isApiClientError,
   reviseRfqRequest,
-  uploadRfqAttachment,
+  getPresignedUploadUrl,
+  confirmUpload,
 } from "../../api";
 import { setFlashNotice } from "../../../lib/flash";
 import type { ActionResult } from "../../../lib/action-result";
@@ -42,6 +43,36 @@ async function handleRfqNotFound(error: unknown): Promise<boolean> {
     redirect("/requests");
   }
   return false;
+}
+
+async function uploadFilePresigned(rfqId: string, file: File, quoteRevisionId?: string) {
+  const fileName = file.name?.trim() || "attachment.bin";
+  const mimeType = file.type || "application/octet-stream";
+
+  const { uploadUrl, storageKey } = await getPresignedUploadUrl(rfqId, {
+    fileName,
+    mimeType,
+    sizeBytes: file.size,
+    quoteRevisionId,
+  });
+
+  const uploadResponse = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": mimeType },
+    body: Buffer.from(await file.arrayBuffer()),
+  });
+
+  if (!uploadResponse.ok) {
+    throw new Error(`S3 upload failed: ${uploadResponse.status}`);
+  }
+
+  return confirmUpload(rfqId, {
+    storageKey,
+    fileName,
+    mimeType,
+    sizeBytes: file.size,
+    quoteRevisionId,
+  });
 }
 
 /* ── Revise Request ────────────────────────────────────── */
@@ -124,11 +155,7 @@ export async function uploadRequestAttachmentsAction(_prev: ActionResult, formDa
 
   try {
     for (const file of files) {
-      const fileName = file.name?.trim() || "attachment.bin";
-      const mimeType = file.type || "application/octet-stream";
-      const bytes = Buffer.from(await file.arrayBuffer());
-      const base64Data = bytes.toString("base64");
-      await uploadRfqAttachment(rfqId, { fileName, mimeType, base64Data });
+      await uploadFilePresigned(rfqId, file);
     }
     revalidateRfq(rfqId);
     return { status: "success", message: files.length === 1 ? "Attachment uploaded successfully." : "Attachments uploaded successfully." };
@@ -182,11 +209,7 @@ export async function createQuoteRevisionAction(_prev: ActionResult, formData: F
     if (quoteFiles.length > 0) {
       try {
         for (const file of quoteFiles) {
-          const fileName = file.name?.trim() || "attachment.bin";
-          const mimeType = file.type || "application/octet-stream";
-          const bytes = Buffer.from(await file.arrayBuffer());
-          const base64Data = bytes.toString("base64");
-          await uploadRfqAttachment(rfqId, { fileName, mimeType, base64Data, quoteRevisionId: created.id });
+          await uploadFilePresigned(rfqId, file, created.id);
         }
         fileMessage = " Quote files have been uploaded.";
       } catch {

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { ApiError, isApiError } from "../../errors.js";
 import { extractBearerToken, resolveAccessToken } from "../auth/auth.service.js";
 import { rfqStore } from "./rfq.store.js";
-import { downloadAttachmentFromStorage, uploadAttachmentToStorage } from "./storage.js";
+import { downloadAttachmentFromStorage, uploadAttachmentToStorage, getPresignedUploadUrl, getPresignedDownloadUrl } from "./storage.js";
 import { type UserRole as RfqRole } from "./rfq.types.js";
 import { sendNotification } from "../email/email.service.js";
 import {
@@ -54,6 +54,21 @@ const createAttachmentSchema = z.object({
   fileName: z.string().min(1).max(255),
   mimeType: z.string().min(1).max(255),
   base64Data: z.string().min(1),
+  quoteRevisionId: z.string().uuid().optional()
+});
+
+const presignUploadSchema = z.object({
+  fileName: z.string().min(1).max(255),
+  mimeType: z.string().min(1).max(255),
+  sizeBytes: z.number().int().positive().max(50 * 1024 * 1024),
+  quoteRevisionId: z.string().uuid().optional()
+});
+
+const confirmUploadSchema = z.object({
+  storageKey: z.string().min(1),
+  fileName: z.string().min(1).max(255),
+  mimeType: z.string().min(1).max(255),
+  sizeBytes: z.number().int().positive(),
   quoteRevisionId: z.string().uuid().optional()
 });
 
@@ -617,6 +632,100 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
       reply.header("Content-Type", downloaded.contentType || attachment.mimeType || "application/octet-stream");
       reply.header("Content-Disposition", `inline; filename="${toSafeDownloadName(attachment.fileName)}"`);
       return reply.send(downloaded.data);
+    } catch (error) {
+      return sendError(reply, error);
+    }
+  });
+
+  // ── Presigned Upload URL ──────────────────────────────────────────
+  server.post("/:id/attachments/presign-upload", async (request, reply) => {
+    const session = await requireAuthSession(request, reply);
+    if (!session) return;
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ code: "INVALID_REQUEST", message: "Route parameter 'id' must be a valid UUID." });
+    }
+
+    const parsed = presignUploadSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ code: "INVALID_REQUEST", message: "Request body validation failed.", details: parsed.error.flatten() });
+    }
+
+    const mimeType = parsed.data.mimeType || "application/octet-stream";
+    if (!isAllowedAttachment(parsed.data.fileName, mimeType)) {
+      return reply.status(415).send({ code: "ATTACHMENT_UNSUPPORTED", message: "Unsupported file type." });
+    }
+
+    try {
+      const { url, storageKey } = await getPresignedUploadUrl({
+        rfqId: params.data.id,
+        quoteRevisionId: parsed.data.quoteRevisionId,
+        fileName: parsed.data.fileName,
+        mimeType,
+        sizeBytes: parsed.data.sizeBytes,
+      });
+
+      return reply.status(200).send({ uploadUrl: url, storageKey });
+    } catch (error) {
+      return sendError(reply, error);
+    }
+  });
+
+  // ── Confirm Upload (after presigned upload completes) ─────────────
+  server.post("/:id/attachments/confirm-upload", async (request, reply) => {
+    const session = await requireAuthSession(request, reply);
+    if (!session) return;
+
+    const role = mapDbRoleToRfqRole(session.user.role);
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ code: "INVALID_REQUEST", message: "Route parameter 'id' must be a valid UUID." });
+    }
+
+    const parsed = confirmUploadSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ code: "INVALID_REQUEST", message: "Request body validation failed.", details: parsed.error.flatten() });
+    }
+
+    try {
+      const attachment = await rfqStore.addAttachment({
+        rfqId: params.data.id,
+        quoteRevisionId: parsed.data.quoteRevisionId,
+        fileName: parsed.data.fileName,
+        mimeType: parsed.data.mimeType,
+        sizeBytes: parsed.data.sizeBytes,
+        storageKey: parsed.data.storageKey,
+        uploadedById: session.user.id,
+        uploadedByRole: role,
+      });
+
+      return reply.status(201).send(attachment);
+    } catch (error) {
+      return sendError(reply, error);
+    }
+  });
+
+  // ── Presigned Download URL ────────────────────────────────────────
+  server.get("/attachments/:attachmentId/presign-download", async (request, reply) => {
+    const session = await requireAuthSession(request, reply);
+    if (!session) return;
+
+    const params = z.object({ attachmentId: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ code: "INVALID_REQUEST", message: "Route parameter 'attachmentId' must be a valid UUID." });
+    }
+
+    const role = mapDbRoleToRfqRole(session.user.role);
+    const attachment = await rfqStore.getAttachmentForDownload(params.data.attachmentId, role, session.user.id);
+
+    if (!attachment) {
+      return reply.status(404).send({ code: "ATTACHMENT_NOT_FOUND", message: "Attachment was not found." });
+    }
+
+    try {
+      const { url } = await getPresignedDownloadUrl(attachment.storageKey, attachment.fileName);
+      return reply.status(200).send({ downloadUrl: url, fileName: attachment.fileName, mimeType: attachment.mimeType });
     } catch (error) {
       return sendError(reply, error);
     }

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createRfq, isApiClientError, uploadRfqAttachment } from "../../api";
+import { createRfq, isApiClientError, getPresignedUploadUrl, confirmUpload } from "../../api";
 import { getSession } from "../../../lib/session";
 import type { ActionResult } from "../../../lib/action-result";
 
@@ -15,6 +15,39 @@ function parseFiles(formData: FormData, key: string) {
 
 function hasOversizedFile(files: File[]) {
   return files.some((file) => file.size > MAX_ATTACHMENT_BYTES);
+}
+
+async function uploadFilePresigned(rfqId: string, file: File, quoteRevisionId?: string) {
+  const fileName = file.name?.trim() || "attachment.bin";
+  const mimeType = file.type || "application/octet-stream";
+
+  // 1. Get presigned URL from API
+  const { uploadUrl, storageKey } = await getPresignedUploadUrl(rfqId, {
+    fileName,
+    mimeType,
+    sizeBytes: file.size,
+    quoteRevisionId,
+  });
+
+  // 2. Upload directly to S3/MinIO
+  const uploadResponse = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": mimeType },
+    body: Buffer.from(await file.arrayBuffer()),
+  });
+
+  if (!uploadResponse.ok) {
+    throw new Error(`S3 upload failed: ${uploadResponse.status}`);
+  }
+
+  // 3. Confirm upload with API (creates DB record)
+  return confirmUpload(rfqId, {
+    storageKey,
+    fileName,
+    mimeType,
+    sizeBytes: file.size,
+    quoteRevisionId,
+  });
 }
 
 export async function createRfqAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
@@ -61,11 +94,7 @@ export async function createRfqAction(_prev: ActionResult, formData: FormData): 
     if (requestFiles.length > 0) {
       try {
         for (const file of requestFiles) {
-          const fileName = file.name?.trim() || "attachment.bin";
-          const mimeType = file.type || "application/octet-stream";
-          const bytes = Buffer.from(await file.arrayBuffer());
-          const base64Data = bytes.toString("base64");
-          await uploadRfqAttachment(created.id, { fileName, mimeType, base64Data });
+          await uploadFilePresigned(created.id, file);
         }
         fileMessage = " Files uploaded successfully.";
       } catch (error) {

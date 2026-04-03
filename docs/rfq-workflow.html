@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RFQ Platform - System Workflow</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #faf6f1; color: #2c1810; }
+
+  .header { background: linear-gradient(135deg, #2d2235, #3d2f4a); color: #fff; padding: 32px 40px; }
+  .header h1 { font-size: 28px; font-weight: 700; }
+  .header p { margin-top: 6px; opacity: 0.7; font-size: 14px; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+
+  /* ── Roles Section ── */
+  .section-title { font-size: 20px; font-weight: 700; margin-bottom: 16px; color: #2d2235; display: flex; align-items: center; gap: 10px; }
+  .section-title .icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+
+  .roles-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 40px; }
+  .role-card { background: #fff; border-radius: 12px; border: 1px solid #e8ddd0; padding: 20px; transition: transform 0.2s; }
+  .role-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+  .role-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .role-london { background: #dbeafe; color: #1e40af; }
+  .role-istanbul-p { background: #fef3c7; color: #92400e; }
+  .role-istanbul-m { background: #d1fae5; color: #065f46; }
+  .role-admin { background: #ede9fe; color: #5b21b6; }
+  .role-card h3 { margin: 12px 0 8px; font-size: 16px; }
+  .role-card ul { list-style: none; font-size: 13px; color: #4a3f35; }
+  .role-card ul li { padding: 3px 0; padding-left: 18px; position: relative; }
+  .role-card ul li::before { content: '✓'; position: absolute; left: 0; color: #5a8f4a; font-weight: 700; }
+
+  /* ── Flow Diagram ── */
+  .flow-section { margin-bottom: 40px; }
+  .flow-container { background: #fff; border-radius: 16px; border: 1px solid #e8ddd0; padding: 32px; overflow-x: auto; }
+
+  .flow { display: flex; flex-direction: column; gap: 0; align-items: center; min-width: 700px; }
+
+  .flow-step { display: flex; align-items: center; gap: 20px; width: 100%; max-width: 800px; }
+  .flow-step .phase-num { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; color: #fff; flex-shrink: 0; }
+  .flow-step .step-content { flex: 1; background: #faf6f1; border-radius: 12px; padding: 16px 20px; border-left: 4px solid; }
+  .flow-step .step-content h4 { font-size: 15px; margin-bottom: 4px; }
+  .flow-step .step-content p { font-size: 13px; color: #6b5e52; line-height: 1.5; }
+  .flow-step .step-meta { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .flow-step .meta-tag { font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 600; }
+  .tag-role { background: #e8ddd0; color: #4a3f35; }
+  .tag-status { background: #d4924b; color: #fff; }
+  .tag-email { background: #dbeafe; color: #1e40af; }
+
+  .flow-arrow { display: flex; justify-content: center; padding: 4px 0; }
+  .flow-arrow svg { width: 24px; height: 28px; }
+
+  .phase-1 .phase-num { background: #3b82f6; }
+  .phase-1 .step-content { border-left-color: #3b82f6; }
+  .phase-2 .phase-num { background: #10b981; }
+  .phase-2 .step-content { border-left-color: #10b981; }
+  .phase-3 .phase-num { background: #f59e0b; }
+  .phase-3 .step-content { border-left-color: #f59e0b; }
+  .phase-4 .phase-num { background: #8b5cf6; }
+  .phase-4 .step-content { border-left-color: #8b5cf6; }
+  .phase-5a .phase-num { background: #5a8f4a; }
+  .phase-5a .step-content { border-left-color: #5a8f4a; }
+  .phase-5b .phase-num { background: #dc2626; }
+  .phase-5b .step-content { border-left-color: #dc2626; }
+  .phase-6 .phase-num { background: #6b7280; }
+  .phase-6 .step-content { border-left-color: #6b7280; }
+
+  /* ── Decision Branch ── */
+  .decision-branch { display: flex; gap: 16px; width: 100%; max-width: 800px; margin-left: 60px; }
+  .decision-branch > div { flex: 1; }
+
+  /* ── Status Flow ── */
+  .status-flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; margin-bottom: 40px; }
+  .status-node { padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 700; border: 2px solid; text-align: center; }
+  .status-arrow { font-size: 20px; color: #8a7968; }
+  .s-new { background: #eff6ff; border-color: #3b82f6; color: #1e40af; }
+  .s-review { background: #ecfdf5; border-color: #10b981; color: #065f46; }
+  .s-pricing { background: #fffbeb; border-color: #f59e0b; color: #92400e; }
+  .s-pending { background: #f5f3ff; border-color: #8b5cf6; color: #5b21b6; }
+  .s-quoted { background: #f0fdf4; border-color: #22c55e; color: #166534; }
+  .s-revision { background: #fef2f2; border-color: #ef4444; color: #991b1b; }
+  .s-closed { background: #f3f4f6; border-color: #6b7280; color: #374151; }
+
+  /* ── Email Table ── */
+  .email-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid #e8ddd0; margin-bottom: 40px; }
+  .email-table th { background: #2d2235; color: #fff; padding: 12px 16px; text-align: left; font-size: 13px; font-weight: 600; }
+  .email-table td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid #f0ebe4; }
+  .email-table tr:last-child td { border-bottom: none; }
+  .email-table tr:hover td { background: #faf6f1; }
+  .email-icon { font-size: 16px; }
+
+  /* ── Legend ── */
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6b5e52; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+
+  @media (max-width: 768px) {
+    .header { padding: 24px 20px; }
+    .header h1 { font-size: 22px; }
+    .roles-grid { grid-template-columns: 1fr; }
+    .flow-container { padding: 20px; }
+    .decision-branch { flex-direction: column; margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>RFQ Platform &mdash; System Workflow</h1>
+  <p>Gorhan &bull; London &amp; Istanbul Quote Operations</p>
+</div>
+
+<div class="container">
+
+  <!-- ════════ ROLES ════════ -->
+  <div class="section-title">
+    <div class="icon" style="background:#2d2235;color:#fff">👥</div>
+    User Roles &amp; Permissions
+  </div>
+
+  <div class="roles-grid">
+    <div class="role-card">
+      <span class="role-badge role-london">London Sales</span>
+      <h3>London Satış Ekibi</h3>
+      <ul>
+        <li>Yeni RFQ oluşturur</li>
+        <li>Proje detaylarını günceller</li>
+        <li>Talep dosyalarını yükler</li>
+        <li>Sadece onaylanan teklifleri görür</li>
+      </ul>
+    </div>
+    <div class="role-card">
+      <span class="role-badge role-istanbul-p">Istanbul Pricing</span>
+      <h3>İstanbul Fiyatlama Ekibi</h3>
+      <ul>
+        <li>Atanan RFQ'lar üzerinde çalışır</li>
+        <li>Teklif versiyonları oluşturur</li>
+        <li>Teklif dosyalarını yükler</li>
+        <li>Sadece kendi atandığı RFQ'ları görür</li>
+      </ul>
+    </div>
+    <div class="role-card">
+      <span class="role-badge role-istanbul-m">Istanbul Manager</span>
+      <h3>İstanbul Yönetici</h3>
+      <ul>
+        <li>RFQ'ları pricing ekibine atar</li>
+        <li>Teklifleri onaylar veya reddeder</li>
+        <li>RFQ durumunu manuel değiştirir</li>
+        <li>Tüm RFQ ve teklifleri görür</li>
+      </ul>
+    </div>
+    <div class="role-card">
+      <span class="role-badge role-admin">Admin</span>
+      <h3>Platform Yöneticisi</h3>
+      <ul>
+        <li>Tüm yetkilere sahiptir</li>
+        <li>Kullanıcı yönetimi yapar</li>
+        <li>Sistem ayarlarını kontrol eder</li>
+        <li>Tam erişim &amp; görünürlük</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ════════ STATUS FLOW ════════ -->
+  <div class="section-title">
+    <div class="icon" style="background:#d4924b;color:#fff">🔄</div>
+    RFQ Durum Akışı
+  </div>
+
+  <div class="flow-container" style="margin-bottom:40px">
+    <div class="status-flow">
+      <div class="status-node s-new">NEW<br><small>Yeni Giriş</small></div>
+      <span class="status-arrow">→</span>
+      <div class="status-node s-review">IN_REVIEW<br><small>Atandı</small></div>
+      <span class="status-arrow">→</span>
+      <div class="status-node s-pricing">PRICING_IN_PROGRESS<br><small>Fiyatlama</small></div>
+      <span class="status-arrow">→</span>
+      <div class="status-node s-pending">PENDING_APPROVAL<br><small>Onay Bekliyor</small></div>
+      <span class="status-arrow">→</span>
+      <div class="status-node s-quoted">QUOTED<br><small>Teklif Hazır ✓</small></div>
+      <span class="status-arrow">→</span>
+      <div class="status-node s-closed">CLOSED<br><small>Kapatıldı</small></div>
+    </div>
+    <div style="text-align:center;margin-top:12px">
+      <div style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;background:#fef2f2;border-radius:8px;border:1px solid #fecaca">
+        <span class="status-node s-revision" style="padding:6px 12px;font-size:11px">REVISION_REQUESTED</span>
+        <span style="font-size:12px;color:#991b1b">← Reddedilirse buraya döner, tekrar fiyatlama başlar →</span>
+        <span class="status-node s-pricing" style="padding:6px 12px;font-size:11px">PRICING_IN_PROGRESS</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ MAIN FLOW ════════ -->
+  <div class="section-title">
+    <div class="icon" style="background:#5a8f4a;color:#fff">📋</div>
+    İş Akışı (Workflow)
+  </div>
+
+  <div class="flow-container flow-section">
+    <div class="flow">
+
+      <!-- Phase 1 -->
+      <div class="flow-step phase-1">
+        <div class="phase-num">1</div>
+        <div class="step-content">
+          <h4>Yeni RFQ Oluşturulur</h4>
+          <p>London Sales ekibi yeni bir teklif talebi girer: proje adı, deadline, detaylar ve talep eden kişi bilgisi.</p>
+          <div class="step-meta">
+            <span class="meta-tag tag-role">👤 London Sales</span>
+            <span class="meta-tag tag-status">NEW</span>
+            <span class="meta-tag tag-email">📧 Istanbul Manager'lara bildirim</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow"><svg viewBox="0 0 24 28"><path d="M12 0v22M6 16l6 8 6-8" fill="none" stroke="#c4a35a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+      <!-- Phase 2 -->
+      <div class="flow-step phase-2">
+        <div class="phase-num">2</div>
+        <div class="step-content">
+          <h4>RFQ Atanır</h4>
+          <p>Istanbul Manager, RFQ'yu bir Istanbul Pricing kullanıcısına atar. Atanan kişi çalışmaya başlayabilir.</p>
+          <div class="step-meta">
+            <span class="meta-tag tag-role">👤 Istanbul Manager</span>
+            <span class="meta-tag tag-status">IN_REVIEW</span>
+            <span class="meta-tag tag-email">📧 Atanan pricing kullanıcıya bildirim</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow"><svg viewBox="0 0 24 28"><path d="M12 0v22M6 16l6 8 6-8" fill="none" stroke="#c4a35a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+      <!-- Phase 3 -->
+      <div class="flow-step phase-3">
+        <div class="phase-num">3</div>
+        <div class="step-content">
+          <h4>Teklif Hazırlanır</h4>
+          <p>Istanbul Pricing kullanıcısı teklif versiyonu oluşturur: para birimi, tutar, notlar ve dosyalar. Onaya sunabilir veya taslak olarak kaydedebilir.</p>
+          <div class="step-meta">
+            <span class="meta-tag tag-role">👤 Istanbul Pricing</span>
+            <span class="meta-tag tag-status">PRICING_IN_PROGRESS</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow"><svg viewBox="0 0 24 28"><path d="M12 0v22M6 16l6 8 6-8" fill="none" stroke="#c4a35a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+      <!-- Phase 4 -->
+      <div class="flow-step phase-4">
+        <div class="phase-num">4</div>
+        <div class="step-content">
+          <h4>Onaya Sunulur</h4>
+          <p>Teklif onaya sunulduğunda Istanbul Manager'lar bilgilendirilir. Manager teklifi inceleyip onay/ret kararı verir.</p>
+          <div class="step-meta">
+            <span class="meta-tag tag-role">👤 Istanbul Pricing → Istanbul Manager</span>
+            <span class="meta-tag tag-status">PENDING_MANAGER_APPROVAL</span>
+            <span class="meta-tag tag-email">📧 Istanbul Manager'lara bildirim</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow"><svg viewBox="0 0 24 28"><path d="M12 0v22M6 16l6 8 6-8" fill="none" stroke="#c4a35a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+      <!-- Phase 5 - Decision -->
+      <div style="display:flex;gap:16px;width:100%;max-width:800px">
+        <!-- Approved -->
+        <div class="flow-step phase-5a" style="flex:1">
+          <div class="phase-num">✓</div>
+          <div class="step-content">
+            <h4>Onaylandı</h4>
+            <p>Teklif onaylanır ve London Sales'e görünür hale gelir. Proje teklif aşamasını tamamlamıştır.</p>
+            <div class="step-meta">
+              <span class="meta-tag tag-status">QUOTED</span>
+              <span class="meta-tag tag-email">📧 Pricing + RFQ oluşturana bildirim</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rejected -->
+        <div class="flow-step phase-5b" style="flex:1">
+          <div class="phase-num">✗</div>
+          <div class="step-content">
+            <h4>Reddedildi</h4>
+            <p>Teklif geri gönderilir. Pricing kullanıcısı yeni versiyon hazırlar ve tekrar onaya sunar.</p>
+            <div class="step-meta">
+              <span class="meta-tag tag-status">REVISION_REQUESTED</span>
+              <span class="meta-tag tag-email">📧 Pricing + RFQ oluşturana bildirim</span>
+            </div>
+            <p style="margin-top:8px;font-size:12px;color:#dc2626;font-weight:600">↩ Adım 3'e döner</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow"><svg viewBox="0 0 24 28"><path d="M12 0v22M6 16l6 8 6-8" fill="none" stroke="#c4a35a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+      <!-- Phase 6 -->
+      <div class="flow-step phase-6">
+        <div class="phase-num">6</div>
+        <div class="step-content">
+          <h4>Kapatılır</h4>
+          <p>Manager istediğinde RFQ'yu kapatabilir. Tüm geçmiş (versiyonlar, onaylar, dosyalar) kayıtlı kalır.</p>
+          <div class="step-meta">
+            <span class="meta-tag tag-role">👤 Istanbul Manager / Admin</span>
+            <span class="meta-tag tag-status">CLOSED</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════ EMAIL NOTIFICATIONS ════════ -->
+  <div class="section-title">
+    <div class="icon" style="background:#3b82f6;color:#fff">📧</div>
+    E-posta Bildirimleri
+  </div>
+
+  <table class="email-table">
+    <thead>
+      <tr>
+        <th>Tetikleyici Olay</th>
+        <th>Alıcılar</th>
+        <th>E-posta Konusu</th>
+        <th>Aksiyon</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Yeni RFQ oluşturuldu</strong></td>
+        <td>Tüm Istanbul Manager'lar</td>
+        <td>New RFQ: [Proje Adı]</td>
+        <td>İncele &amp; Ata</td>
+      </tr>
+      <tr>
+        <td><strong>RFQ birine atandı</strong></td>
+        <td>Atanan Pricing kullanıcısı</td>
+        <td>New assignment: [Proje Adı]</td>
+        <td>Talebi Gör</td>
+      </tr>
+      <tr>
+        <td><strong>Teklif onaya sunuldu</strong></td>
+        <td>Tüm Istanbul Manager'lar</td>
+        <td>Quote V[N] submitted: [Proje Adı]</td>
+        <td>Teklifi İncele</td>
+      </tr>
+      <tr>
+        <td><strong>Teklif onaylandı</strong></td>
+        <td>Pricing kullanıcısı + RFQ oluşturan</td>
+        <td>Quote V[N] approved: [Proje Adı]</td>
+        <td>Detayları Gör</td>
+      </tr>
+      <tr>
+        <td><strong>Teklif reddedildi</strong></td>
+        <td>Pricing kullanıcısı + RFQ oluşturan</td>
+        <td>Quote V[N] rejected: [Proje Adı]</td>
+        <td>Detayları Gör</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ════════ TECH STACK ════════ -->
+  <div class="section-title">
+    <div class="icon" style="background:#6b7280;color:#fff">⚙️</div>
+    Teknik Altyapı
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:40px">
+    <div class="role-card" style="text-align:center">
+      <div style="font-size:28px;margin-bottom:8px">🌐</div>
+      <strong>Frontend</strong>
+      <p style="font-size:12px;color:#6b5e52;margin-top:4px">Next.js 15 + React 19<br>Tailwind CSS + shadcn/ui</p>
+    </div>
+    <div class="role-card" style="text-align:center">
+      <div style="font-size:28px;margin-bottom:8px">🔧</div>
+      <strong>Backend API</strong>
+      <p style="font-size:12px;color:#6b5e52;margin-top:4px">Fastify 5 + Prisma 6<br>PostgreSQL 16</p>
+    </div>
+    <div class="role-card" style="text-align:center">
+      <div style="font-size:28px;margin-bottom:8px">📧</div>
+      <strong>E-posta</strong>
+      <p style="font-size:12px;color:#6b5e52;margin-top:4px">AWS SES + Nodemailer<br>noreply@rfq.gorhan.co.uk</p>
+    </div>
+    <div class="role-card" style="text-align:center">
+      <div style="font-size:28px;margin-bottom:8px">☁️</div>
+      <strong>Hosting</strong>
+      <p style="font-size:12px;color:#6b5e52;margin-top:4px">AWS Lightsail<br>Docker + Caddy</p>
+    </div>
+    <div class="role-card" style="text-align:center">
+      <div style="font-size:28px;margin-bottom:8px">🔒</div>
+      <strong>Auth</strong>
+      <p style="font-size:12px;color:#6b5e52;margin-top:4px">NextAuth v4<br>JWT + Role-based</p>
+    </div>
+    <div class="role-card" style="text-align:center">
+      <div style="font-size:28px;margin-bottom:8px">📁</div>
+      <strong>Dosya Depolama</strong>
+      <p style="font-size:12px;color:#6b5e52;margin-top:4px">MinIO (S3 uyumlu)<br>PDF, Image, CAD</p>
+    </div>
+  </div>
+
+  <div style="text-align:center;padding:24px;color:#8a7968;font-size:12px">
+    Gorhan RFQ Platform &bull; rfq.gorhan.co.uk
+  </div>
+
+</div>
+</body>
+</html>
