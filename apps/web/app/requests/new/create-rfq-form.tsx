@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FormMessage } from "@/components/ui/form-message";
-import { ArrowLeft, Plus, Upload, Loader2 } from "lucide-react";
+import { FileDropZone } from "@/components/ui/file-drop-zone";
+import { ArrowLeft, Plus, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 type CreateRfqFormProps = {
@@ -67,33 +68,22 @@ export function CreateRfqForm({ requestedBy }: CreateRfqFormProps) {
             />
           </div>
           <div className="sm:col-span-2 grid gap-2">
-            <Label htmlFor="requestFiles">Request Files (Optional)</Label>
-            <label
-              htmlFor="requestFiles"
-              className="relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/30 px-6 py-8 text-center transition-colors hover:border-primary/50 hover:bg-muted/50 cursor-pointer"
-            >
-              <Upload className="size-8 text-muted-foreground/60" />
-              <div>
-                <span className="font-medium text-sm text-foreground">Click to upload files</span>
-                <span className="text-sm text-muted-foreground"> or drag and drop</span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                PDF, images, CAD files — max 10 files, 50 MB each
-              </p>
-              <input
-                id="requestFiles"
-                name="requestFiles"
-                type="file"
-                multiple
-                accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.svg,.dwg,.dxf,.step,.stp,.igs,.iges,application/pdf,image/*"
-                className="sr-only"
-              />
-            </label>
+            <Label>Request Files (Optional)</Label>
+            <FileDropZone name="requestFiles" />
           </div>
           <div className="sm:col-span-2 flex items-center gap-3">
             <Button type="submit" disabled={pending}>
-              {pending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-              Create RFQ
+              {pending ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Creating & uploading...
+                </>
+              ) : (
+                <>
+                  <Plus className="size-4" />
+                  Create RFQ
+                </>
+              )}
             </Button>
             <Button variant="ghost" asChild>
               <Link href="/requests">
@@ -102,6 +92,17 @@ export function CreateRfqForm({ requestedBy }: CreateRfqFormProps) {
               </Link>
             </Button>
           </div>
+
+          {/* Overlay during submission */}
+          {pending && (
+            <div className="sm:col-span-2 flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
+              <Loader2 className="size-5 animate-spin text-primary shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-primary">Creating RFQ and uploading files...</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Please wait, this may take a moment for large files.</p>
+              </div>
+            </div>
+          )}
         </form>
       </CardContent>
     </Card>

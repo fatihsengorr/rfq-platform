@@ -17,7 +17,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { FormMessage } from "@/components/ui/form-message";
-import { Paperclip, Receipt, Loader2, Upload } from "lucide-react";
+import { FileDropZone } from "@/components/ui/file-drop-zone";
+import { Paperclip, Receipt, Loader2 } from "lucide-react";
 
 type ActionTab = "revise" | "upload" | "quote" | "assign" | "approval";
 
@@ -30,12 +31,31 @@ type ActionCenterProps = {
 const selectClasses = "h-10 w-full rounded-lg border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 
-function SubmitBtn({ pending, children }: { pending: boolean; children: React.ReactNode }) {
+function SubmitBtn({ pending, children, pendingText }: { pending: boolean; children: React.ReactNode; pendingText?: string }) {
   return (
     <Button type="submit" disabled={pending}>
-      {pending && <Loader2 className="size-4 animate-spin" />}
-      {children}
+      {pending ? (
+        <>
+          <Loader2 className="size-4 animate-spin" />
+          {pendingText ?? "Processing..."}
+        </>
+      ) : (
+        children
+      )}
     </Button>
+  );
+}
+
+function UploadProgress({ pending, label }: { pending: boolean; label: string }) {
+  if (!pending) return null;
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4 mt-3">
+      <Loader2 className="size-5 animate-spin text-primary shrink-0" />
+      <div>
+        <p className="text-sm font-semibold text-primary">{label}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Please wait, this may take a moment for large files.</p>
+      </div>
+    </div>
   );
 }
 
@@ -98,7 +118,7 @@ export function ActionCenter({ record, pricingUsers, availableActions }: ActionC
               <div className="grid gap-2"><Label>Requested By</Label><Input name="requestedBy" minLength={2} required defaultValue={record.requestedBy} /></div>
               <div className="grid gap-2"><Label>Deadline</Label><Input name="deadline" type="datetime-local" required defaultValue={isoDeadlineLocal} /></div>
               <div className="sm:col-span-2 grid gap-2"><Label>Project Details</Label><Textarea name="projectDetails" rows={4} minLength={10} required defaultValue={record.projectDetails} /></div>
-              <SubmitBtn pending={revisePending}>Save Request Revision</SubmitBtn>
+              <SubmitBtn pending={revisePending} pendingText="Saving...">Save Request Revision</SubmitBtn>
             </form>
           </>
         )}
@@ -110,15 +130,13 @@ export function ActionCenter({ record, pricingUsers, availableActions }: ActionC
               <input type="hidden" name="rfqId" value={record.id} />
               <div className="grid gap-2">
                 <Label>Request Files</Label>
-                <label className="relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/30 px-6 py-6 text-center transition-colors hover:border-primary/50 hover:bg-muted/50 cursor-pointer">
-                  <Upload className="size-6 text-muted-foreground/60" />
-                  <span className="text-sm"><span className="font-medium text-foreground">Click to upload</span> <span className="text-muted-foreground">or drag and drop</span></span>
-                  <p className="text-xs text-muted-foreground">PDF, images, CAD — max 10 files, 50 MB each</p>
-                  <input name="requestFiles" type="file" required multiple accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.svg,.dwg,.dxf,.step,.stp,.igs,.iges,application/pdf,image/*" className="sr-only" />
-                </label>
+                <FileDropZone name="requestFiles" required />
               </div>
-              <SubmitBtn pending={uploadPending}><Paperclip className="size-4" />Upload Request Files</SubmitBtn>
+              <SubmitBtn pending={uploadPending} pendingText="Uploading files...">
+                <Paperclip className="size-4" />Upload Request Files
+              </SubmitBtn>
             </form>
+            <UploadProgress pending={uploadPending} label="Uploading files to storage..." />
           </>
         )}
 
@@ -132,15 +150,16 @@ export function ActionCenter({ record, pricingUsers, availableActions }: ActionC
               <div className="sm:col-span-2 grid gap-2"><Label>Notes</Label><Textarea name="notes" rows={3} minLength={2} required /></div>
               <div className="sm:col-span-2 grid gap-2">
                 <Label>Quote Files (optional)</Label>
-                <label className="relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/30 px-6 py-6 text-center transition-colors hover:border-primary/50 hover:bg-muted/50 cursor-pointer">
-                  <Upload className="size-6 text-muted-foreground/60" />
-                  <span className="text-sm"><span className="font-medium text-foreground">Click to upload</span> <span className="text-muted-foreground">or drag and drop</span></span>
-                  <input name="quoteFiles" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.svg,.dwg,.dxf,.step,.stp,.igs,.iges,application/pdf,image/*" className="sr-only" />
-                </label>
+                <FileDropZone name="quoteFiles" />
               </div>
               <div className="flex items-center gap-2"><input name="autoSubmitForApproval" type="checkbox" defaultChecked className="size-4 accent-primary" /><Label className="cursor-pointer">Submit For Approval</Label></div>
-              <div className="sm:col-span-2"><SubmitBtn pending={quotePending}><Receipt className="size-4" />Create Quote Revision</SubmitBtn></div>
+              <div className="sm:col-span-2">
+                <SubmitBtn pending={quotePending} pendingText="Creating quote & uploading...">
+                  <Receipt className="size-4" />Create Quote Revision
+                </SubmitBtn>
+              </div>
             </form>
+            <UploadProgress pending={quotePending} label="Creating quote revision and uploading files..." />
           </>
         )}
 
@@ -159,7 +178,7 @@ export function ActionCenter({ record, pricingUsers, availableActions }: ActionC
                     {pricingUsers.map((u) => <option key={u.id} value={u.id}>{u.fullName} ({u.email})</option>)}
                   </select>
                 </div>
-                <div className="flex items-end"><SubmitBtn pending={assignPending}>Save Assignment</SubmitBtn></div>
+                <div className="flex items-end"><SubmitBtn pending={assignPending} pendingText="Saving...">Save Assignment</SubmitBtn></div>
               </form>
             )}
           </>
@@ -176,7 +195,7 @@ export function ActionCenter({ record, pricingUsers, availableActions }: ActionC
                 <div className="grid gap-2"><Label>Revision</Label><select name="quoteRevisionId" required className={selectClasses}>{pendingRevisions.map((r) => <option key={r.id} value={r.id}>V{r.versionNumber} - {r.currency} {r.totalAmount.toLocaleString("en-GB")}</option>)}</select></div>
                 <div className="grid gap-2"><Label>Decision</Label><select name="decision" defaultValue="APPROVED" required className={selectClasses}><option value="APPROVED">APPROVED</option><option value="REJECTED">REJECTED</option></select></div>
                 <div className="sm:col-span-2 grid gap-2"><Label>Comment</Label><Textarea name="comment" rows={3} minLength={2} required /></div>
-                <SubmitBtn pending={approvalPending}>Save Manager Decision</SubmitBtn>
+                <SubmitBtn pending={approvalPending} pendingText="Saving decision...">Save Manager Decision</SubmitBtn>
               </form>
             )}
           </>
