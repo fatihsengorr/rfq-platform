@@ -96,10 +96,19 @@ export default async function RequestDetailPage({ params }: { params: Promise<Pa
 
       <FlashNotice path={`/requests/${id}`} notices={detailNotices} />
 
-      <SummaryCard record={record} />
-      <ActionCenter record={record} pricingUsers={pricingUsers} availableActions={availableActions} />
-      <CommentSection rfqId={id} currentUserId={session.user.id} initialComments={initialComments} />
-      <DetailsCard record={record} />
+      <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_360px]">
+        {/* Left column — main workflow */}
+        <div className="min-w-0 space-y-4">
+          <SummaryCard record={record} />
+          <ActionCenter record={record} pricingUsers={pricingUsers} availableActions={availableActions} />
+          <DetailsCard record={record} />
+        </div>
+
+        {/* Right column — conversation (sticky) */}
+        <div className="xl:sticky xl:top-4 xl:self-start">
+          <CommentSection rfqId={id} currentUserId={session.user.id} initialComments={initialComments} />
+        </div>
+      </div>
     </main>
   );
 }
