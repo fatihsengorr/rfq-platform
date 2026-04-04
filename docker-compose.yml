@@ -4,15 +4,15 @@ services:
     container_name: rfq-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: rfq_platform
-      POSTGRES_USER: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-rfq_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
       - "55432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -48,17 +48,22 @@ services:
       NODE_ENV: production
       PORT: 4000
       HOST: 0.0.0.0
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/rfq_platform
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/rfq_platform}
       PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-http://localhost:4000}
       APP_WEB_BASE_URL: ${APP_WEB_BASE_URL:-http://localhost:3000}
-      STORAGE_ENDPOINT: minio
-      STORAGE_PORT: 9000
-      STORAGE_USE_SSL: "false"
+      STORAGE_ENDPOINT: ${STORAGE_ENDPOINT:-minio}
+      STORAGE_PORT: ${STORAGE_PORT:-9000}
+      STORAGE_USE_SSL: ${STORAGE_USE_SSL:-false}
       STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-minio}
       STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY:-minio123}
-      STORAGE_REGION: us-east-1
-      STORAGE_BUCKET: rfq-attachments
+      STORAGE_REGION: ${STORAGE_REGION:-us-east-1}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-rfq-attachments}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
     depends_on:
       postgres:
         condition: service_healthy
