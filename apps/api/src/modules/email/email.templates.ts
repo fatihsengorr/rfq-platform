@@ -113,6 +113,29 @@ export function approvalDecisionNotification(
   };
 }
 
+export function newCommentNotification(
+  projectName: string,
+  authorName: string,
+  commentBody: string,
+  rfqUrl: string,
+): { subject: string; html: string } {
+  const truncated = commentBody.length > 200 ? commentBody.slice(0, 200) + "..." : commentBody;
+
+  return {
+    subject: `New comment on ${projectName}`,
+    html: layout(
+      "New comment on an RFQ",
+      `<p style="margin:0;color:#4a3f35;font-size:14px;line-height:1.6">
+        <strong>${authorName}</strong> commented on <strong>${projectName}</strong>:
+      </p>
+      <div style="margin-top:12px;padding:12px;background:#faf6f1;border-radius:8px;border-left:3px solid #d4924b">
+        <p style="margin:0;font-size:13px;color:#4a3f35;white-space:pre-wrap">${truncated}</p>
+      </div>
+      ${button(rfqUrl, "View Conversation")}`,
+    ),
+  };
+}
+
 export function deadlineWarningNotification(
   projectName: string,
   deadline: string,

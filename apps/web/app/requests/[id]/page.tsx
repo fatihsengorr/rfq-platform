@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getPricingUsers, getRfqById, isApiClientError } from "../../api";
+import { getPricingUsers, getRfqById, getComments, isApiClientError } from "../../api";
 import { FlashNotice } from "../../components/flash-notice";
 import { getSession } from "../../../lib/session";
 import { Card } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { ArrowLeft } from "lucide-react";
 import { SummaryCard } from "./components/summary-card";
 import { ActionCenter } from "./components/action-center";
 import { DetailsCard } from "./components/details-card";
+import { CommentSection } from "./components/comment-section";
 
 type Params = { id: string };
 type ActionTab = "revise" | "upload" | "quote" | "assign" | "approval";
@@ -60,6 +61,13 @@ export default async function RequestDetailPage({ params }: { params: Promise<Pa
     }
   }
 
+  let initialComments: Awaited<ReturnType<typeof getComments>> = [];
+  try {
+    initialComments = await getComments(id);
+  } catch {
+    // Comments will load empty, polling will retry
+  }
+
   const availableActions: Array<{ key: ActionTab; label: string }> = [];
   if (canReviseRequest) {
     availableActions.push({ key: "revise", label: "Revise Request" });
@@ -90,6 +98,7 @@ export default async function RequestDetailPage({ params }: { params: Promise<Pa
 
       <SummaryCard record={record} />
       <ActionCenter record={record} pricingUsers={pricingUsers} availableActions={availableActions} />
+      <CommentSection rfqId={id} currentUserId={session.user.id} initialComments={initialComments} />
       <DetailsCard record={record} />
     </main>
   );

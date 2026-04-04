@@ -56,6 +56,7 @@ model User {
   passwordResetTokens  PasswordResetToken[]
   sessions             Session[]
   notifications        Notification[] @relation("notification_recipient")
+  comments             Comment[]      @relation("comment_author")
 }
 
 model Rfq {
@@ -79,6 +80,7 @@ model Rfq {
   attachments    Attachment[]
   quoteRevisions QuoteRevision[]
   notifications  Notification[]
+  comments       Comment[]
 }
 
 model QuoteRevision {
@@ -177,6 +179,20 @@ model Lead {
 
   ownerId           String
   owner             User             @relation("lead_owner", fields: [ownerId], references: [id])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  body      String
+  createdAt DateTime @default(now())
+
+  rfqId     String
+  rfq       Rfq      @relation(fields: [rfqId], references: [id])
+
+  authorId  String
+  author    User     @relation("comment_author", fields: [authorId], references: [id])
+
+  @@index([rfqId, createdAt])
 }
 
 model Notification {

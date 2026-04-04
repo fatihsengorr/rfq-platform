@@ -282,6 +282,26 @@ export async function getPresignedDownloadUrl(
   return request<{ downloadUrl: string; fileName: string; mimeType: string }>(`/api/rfqs/attachments/${attachmentId}/presign-download`) as Promise<{ downloadUrl: string; fileName: string; mimeType: string }>;
 }
 
+export type CommentItem = {
+  id: string;
+  body: string;
+  createdAt: string;
+  author: {
+    id: string;
+    fullName: string;
+    role: string;
+  };
+};
+
+export async function getComments(rfqId: string): Promise<CommentItem[]> {
+  const result = await request<CommentItem[]>(`/api/rfqs/${rfqId}/comments`);
+  return result ?? [];
+}
+
+export async function addComment(rfqId: string, body: string): Promise<CommentItem> {
+  return postAuthenticated<CommentItem>(`/api/rfqs/${rfqId}/comments`, { body });
+}
+
 export async function getPricingUsers(): Promise<Array<{ id: string; fullName: string; email: string }>> {
   const result = await request<Array<{ id: string; fullName: string; email: string }>>("/api/rfqs/pricing-users");
   return result ?? [];
