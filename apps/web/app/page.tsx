@@ -11,10 +11,12 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DeadlineBadge } from "@/components/ui/deadline-badge";
 import { getDeadlineUrgency } from "@/lib/deadline";
-import { ArrowRight, Plus, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, Inbox, Plus, ShieldCheck, Users } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { formatDateTime } from "@/lib/format";
 
 type MetricAccent = "primary" | "accent" | "muted";
-type MetricItem = { label: string; value: string; accent: MetricAccent };
+type MetricItem = { label: string; value: string; accent: MetricAccent; href?: string };
 
 function roleHeadline(role: SessionUser["role"]) {
   if (role === "LONDON_SALES") return "London Sales Dashboard";
@@ -52,33 +54,33 @@ function metricsForRole(role: SessionUser["role"], rfqs: RfqRecord[], userId: st
 
   if (role === "LONDON_SALES") {
     return [
-      { label: "Open Requests", value: String(rfqs.filter((item) => item.status !== "CLOSED").length), accent: "primary" },
-      { label: "Approved Quotes", value: String(quoted), accent: "accent" },
-      { label: "Overdue", value: String(overdue), accent: overdue > 0 ? "primary" : "muted" },
-      { label: "Needs Revision", value: String(rfqs.filter((item) => item.status === "REVISION_REQUESTED").length), accent: "muted" }
+      { label: "Open Requests", value: String(rfqs.filter((item) => item.status !== "CLOSED").length), accent: "primary", href: "/requests" },
+      { label: "Approved Quotes", value: String(quoted), accent: "accent", href: "/requests?status=QUOTED" },
+      { label: "Overdue", value: String(overdue), accent: overdue > 0 ? "primary" : "muted", href: "/requests?sort=deadline" },
+      { label: "Needs Revision", value: String(rfqs.filter((item) => item.status === "REVISION_REQUESTED").length), accent: "muted", href: "/requests?status=REVISION_REQUESTED" }
     ];
   }
   if (role === "ISTANBUL_PRICING") {
     return [
-      { label: "Assigned To Me", value: String(assignedToMe), accent: "primary" },
-      { label: "Awaiting My Pricing", value: String(rfqs.filter((item) => item.status === "PRICING_IN_PROGRESS" && item.assignedPricingUserId === userId).length), accent: "accent" },
-      { label: "Overdue", value: String(overdue), accent: overdue > 0 ? "primary" : "muted" },
-      { label: "Submitted For Approval", value: String(rfqs.filter((item) => item.status === "PENDING_MANAGER_APPROVAL" && item.assignedPricingUserId === userId).length), accent: "muted" }
+      { label: "Assigned To Me", value: String(assignedToMe), accent: "primary", href: "/requests" },
+      { label: "Awaiting My Pricing", value: String(rfqs.filter((item) => item.status === "PRICING_IN_PROGRESS" && item.assignedPricingUserId === userId).length), accent: "accent", href: "/requests?status=PRICING_IN_PROGRESS" },
+      { label: "Overdue", value: String(overdue), accent: overdue > 0 ? "primary" : "muted", href: "/requests?sort=deadline" },
+      { label: "Submitted For Approval", value: String(rfqs.filter((item) => item.status === "PENDING_MANAGER_APPROVAL" && item.assignedPricingUserId === userId).length), accent: "muted", href: "/requests?status=PENDING_MANAGER_APPROVAL" }
     ];
   }
   if (role === "ISTANBUL_MANAGER") {
     return [
-      { label: "Pending Approval", value: String(pendingApproval), accent: "accent" },
-      { label: "Unassigned RFQs", value: String(unassigned), accent: "primary" },
-      { label: "Overdue", value: String(overdue), accent: overdue > 0 ? "primary" : "muted" },
-      { label: "Quoted", value: String(quoted), accent: "muted" }
+      { label: "Pending Approval", value: String(pendingApproval), accent: "accent", href: "/requests?focus=approval" },
+      { label: "Unassigned RFQs", value: String(unassigned), accent: "primary", href: "/requests?assigned=unassigned" },
+      { label: "Overdue", value: String(overdue), accent: overdue > 0 ? "primary" : "muted", href: "/requests?sort=deadline" },
+      { label: "Quoted", value: String(quoted), accent: "muted", href: "/requests?status=QUOTED" }
     ];
   }
   return [
-    { label: "Total RFQs", value: String(rfqs.length), accent: "primary" },
-    { label: "Pending Approval", value: String(pendingApproval), accent: "accent" },
-    { label: "Overdue", value: String(overdue), accent: overdue > 0 ? "primary" : "muted" },
-    { label: "Unassigned", value: String(unassigned), accent: "muted" }
+    { label: "Total RFQs", value: String(rfqs.length), accent: "primary", href: "/requests" },
+    { label: "Pending Approval", value: String(pendingApproval), accent: "accent", href: "/requests?focus=approval" },
+    { label: "Overdue", value: String(overdue), accent: overdue > 0 ? "primary" : "muted", href: "/requests?sort=deadline" },
+    { label: "Unassigned", value: String(unassigned), accent: "muted", href: "/requests?assigned=unassigned" }
   ];
 }
 
@@ -149,6 +151,7 @@ export default async function HomePage() {
             label={item.label}
             value={item.value}
             accent={item.accent}
+            href={item.href}
           />
         ))}
       </div>
@@ -163,7 +166,11 @@ export default async function HomePage() {
         </CardHeader>
         <CardContent>
           {queue.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No records to show in your queue.</p>
+            <EmptyState
+              icon={Inbox}
+              title="Queue is empty"
+              description="No priority items right now. All caught up!"
+            />
           ) : (
             <Table>
               <TableHeader>
@@ -183,7 +190,7 @@ export default async function HomePage() {
                     </TableCell>
                     <TableCell className="text-sm">
                       <div className="flex flex-col gap-1">
-                        <span className="text-muted-foreground">{new Date(item.deadline).toLocaleString("en-GB")}</span>
+                        <span className="text-muted-foreground">{formatDateTime(item.deadline)}</span>
                         {item.status !== "CLOSED" && <DeadlineBadge deadline={item.deadline} />}
                       </div>
                     </TableCell>

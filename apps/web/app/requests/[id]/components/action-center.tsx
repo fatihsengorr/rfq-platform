@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { FormMessage } from "@/components/ui/form-message";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { Paperclip, Receipt, Loader2 } from "lucide-react";
+import { PillTabList, PillTab } from "@/components/ui/pill-tabs";
 
 type ActionTab = "revise" | "upload" | "quote" | "assign" | "approval";
 
@@ -92,22 +93,17 @@ export function ActionCenter({ record, pricingUsers, availableActions }: ActionC
         <Badge variant="outline">Role-based actions</Badge>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-wrap gap-2 mb-4">
+        <PillTabList className="mb-4">
           {availableActions.map((item) => (
-            <button
+            <PillTab
               key={item.key}
-              type="button"
+              active={activeAction === item.key}
               onClick={() => setActiveAction(item.key)}
-              className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-bold border transition-colors ${
-                activeAction === item.key
-                  ? "bg-primary/10 border-primary text-primary"
-                  : "border-border bg-card text-muted-foreground hover:border-primary/40"
-              }`}
             >
               {item.label}
-            </button>
+            </PillTab>
           ))}
-        </div>
+        </PillTabList>
 
         {activeAction === "revise" && (
           <>

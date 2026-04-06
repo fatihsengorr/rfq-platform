@@ -3,6 +3,7 @@ import { latestQuoteLabel } from "../../../data";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DeadlineBadge } from "@/components/ui/deadline-badge";
+import { formatDateTime } from "@/lib/format";
 
 type SummaryCardProps = {
   record: RfqRecord;
@@ -22,7 +23,7 @@ export function SummaryCard({ record }: SummaryCardProps) {
           </div>
           <div className="rounded-lg border border-border p-3">
             <p className="text-xs font-semibold text-muted-foreground">Deadline</p>
-            <p className="mt-1 font-semibold text-sm">{new Date(record.deadline).toLocaleString("en-GB")}</p>
+            <p className="mt-1 font-semibold text-sm">{formatDateTime(record.deadline)}</p>
             {record.status !== "CLOSED" && <DeadlineBadge deadline={record.deadline} className="mt-1" />}
           </div>
           <div className="rounded-lg border border-border p-3">

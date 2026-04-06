@@ -1,8 +1,5 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-
-function SkeletonLine({ className }: { className?: string }) {
-  return <div className={`bg-muted animate-pulse rounded ${className ?? "h-4 w-full"}`} />;
-}
+import { Skeleton as SkeletonLine } from "@/components/ui/skeleton";
 
 export default function RequestDetailLoading() {
   return (

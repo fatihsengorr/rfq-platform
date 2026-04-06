@@ -10,6 +10,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FileText, Paperclip, Receipt, Clock } from "lucide-react";
 import { FilePreviewItem } from "@/components/ui/file-preview";
+import { PillTabList, PillTab } from "@/components/ui/pill-tabs";
+import { formatDateTime, formatCurrency } from "@/lib/format";
 
 type DetailTab = "overview" | "files" | "revisions" | "timeline";
 
@@ -36,28 +38,23 @@ export function DetailsCard({ record }: DetailsCardProps) {
         </Button>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-wrap gap-2 mb-4">
+        <PillTabList className="mb-4">
           {tabConfig.map((tab) => (
-            <button
+            <PillTab
               key={tab.key}
-              type="button"
+              active={activeTab === tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold border transition-colors ${
-                activeTab === tab.key
-                  ? "bg-primary/10 border-primary text-primary"
-                  : "border-border bg-card text-muted-foreground hover:border-primary/40"
-              }`}
+              icon={tab.icon}
             >
-              {tab.icon}
               {tab.label}
-            </button>
+            </PillTab>
           ))}
-        </div>
+        </PillTabList>
 
         {activeTab === "overview" && (
           <div className="grid sm:grid-cols-2 gap-x-8 gap-y-1">
             {[
-              ["Deadline", new Date(record.deadline).toLocaleString("en-GB")],
+              ["Deadline", formatDateTime(record.deadline)],
               ["Requested By", record.requestedBy],
               ["Status", statusLabel(record.status)],
               ["Assigned Pricing User", record.assignedPricingUser ?? "Not assigned yet"],
@@ -123,10 +120,10 @@ export function DetailsCard({ record }: DetailsCardProps) {
                   {record.quoteRevisions.map((r) => (
                     <TableRow key={r.id}>
                       <TableCell className="font-semibold">V{r.versionNumber}</TableCell>
-                      <TableCell>{r.currency} {r.totalAmount.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                      <TableCell>{r.currency} {formatCurrency(r.totalAmount, "").trim()}</TableCell>
                       <TableCell><StatusBadge status={r.status} /></TableCell>
                       <TableCell className="text-sm">{r.createdBy}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{new Date(r.createdAt).toLocaleString("en-GB")}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{formatDateTime(r.createdAt)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -137,15 +134,15 @@ export function DetailsCard({ record }: DetailsCardProps) {
 
         {activeTab === "timeline" && (
           <ol className="grid gap-2 pl-4 list-decimal">
-            <li className="text-sm"><span className="font-semibold">RFQ created</span> — {new Date(record.createdAt).toLocaleString("en-GB")}</li>
+            <li className="text-sm"><span className="font-semibold">RFQ created</span> — {formatDateTime(record.createdAt)}</li>
             {record.quoteRevisions.map((r) => (
               <li key={r.id} className="text-sm">
-                <span className="font-semibold">Quote V{r.versionNumber}</span> ({r.status}) {r.currency} {r.totalAmount.toLocaleString("en-GB")} — {new Date(r.createdAt).toLocaleString("en-GB")}
+                <span className="font-semibold">Quote V{r.versionNumber}</span> ({r.status}) {r.currency} {r.totalAmount.toLocaleString("en-GB")} — {formatDateTime(r.createdAt)}
               </li>
             ))}
             {record.approvals.map((a) => (
               <li key={a.id} className="text-sm">
-                <span className="font-semibold">Manager decision</span> ({a.decision}) — {new Date(a.decidedAt).toLocaleString("en-GB")}
+                <span className="font-semibold">Manager decision</span> ({a.decision}) — {formatDateTime(a.decidedAt)}
               </li>
             ))}
           </ol>

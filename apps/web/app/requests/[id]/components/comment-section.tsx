@@ -28,20 +28,9 @@ const roleLabels: Record<string, string> = {
   ADMIN: "Admin",
 };
 
-function formatTime(iso: string) {
-  const d = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
+import { formatRelativeTime } from "@/lib/format";
 
-  if (diffMins < 1) return "just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
+const formatTime = formatRelativeTime;
 
 function CommentBubble({ comment, isOwn }: { comment: CommentItem; isOwn: boolean }) {
   const initials = comment.author.fullName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();

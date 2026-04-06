@@ -12,7 +12,9 @@ import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DeadlineBadge } from "@/components/ui/deadline-badge";
-import { Plus, Filter, X } from "lucide-react";
+import { FileText, Plus, Filter, X } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { formatDateTime } from "@/lib/format";
 
 const requestNotices = {
   rfq_create_failed: {
@@ -158,7 +160,7 @@ export default async function RequestsPage({
                   name="q"
                   type="text"
                   defaultValue={searchQuery}
-                  placeholder="Project name or requested by..."
+                  placeholder="Project name, company, or contact..."
                   className="h-9 w-56 rounded-lg border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
@@ -239,7 +241,12 @@ export default async function RequestsPage({
         </CardHeader>
         <CardContent>
           {rows.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No records found matching your filters.</p>
+            <EmptyState
+              icon={FileText}
+              title="No requests found"
+              description={hasActiveFilters ? "Try adjusting your filters or search terms." : "No RFQ requests have been created yet."}
+              action={canCreateRfq ? { label: "Create New RFQ", href: "/requests/new" } : undefined}
+            />
           ) : (
             <Table>
               <TableHeader>
@@ -269,7 +276,7 @@ export default async function RequestsPage({
                     <TableCell className="text-sm">{item.assignedPricingUser ?? <span className="text-muted-foreground">—</span>}</TableCell>
                     <TableCell className="text-sm">
                       <div className="flex flex-col gap-1">
-                        <span className="text-muted-foreground">{new Date(item.deadline).toLocaleString("en-GB")}</span>
+                        <span className="text-muted-foreground">{formatDateTime(item.deadline)}</span>
                         {item.status !== "CLOSED" && <DeadlineBadge deadline={item.deadline} />}
                       </div>
                     </TableCell>
