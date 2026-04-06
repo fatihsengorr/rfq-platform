@@ -1,7 +1,7 @@
 import { Prisma, RfqStatus as DbRfqStatus, UserRole as DbUserRole } from "@prisma/client";
 import { ApiError } from "../../errors.js";
 import { prisma } from "../../prisma.js";
-import type { Approval, Attachment, QuoteRevision, RfqRecord, RfqStatus, UserRole } from "./rfq.types.js";
+import type { Approval, Attachment, CompanySummary, ContactSummary, QuoteRevision, RfqRecord, RfqStatus, UserRole } from "./rfq.types.js";
 
 const API_PUBLIC_BASE_URL = (process.env.PUBLIC_API_BASE_URL ?? "http://localhost:4000").replace(/\/+$/, "");
 
@@ -9,6 +9,8 @@ const rfqInclude = {
   createdBy: true,
   assignedPricingUser: true,
   assignedBy: true,
+  company: true,
+  contact: true,
   attachments: {
     include: {
       uploadedBy: true
@@ -121,6 +123,12 @@ function rfqToDto(item: RfqWithRelations, viewerRole: UserRole): RfqRecord {
     assignedPricingUser: item.assignedPricingUser?.fullName ?? null,
     assignedBy: item.assignedBy?.fullName ?? null,
     assignedAt: item.assignedAt ? item.assignedAt.toISOString() : null,
+    company: item.company
+      ? { id: item.company.id, name: item.company.name, sector: item.company.sector, country: item.company.country, city: item.company.city }
+      : null,
+    contact: item.contact
+      ? { id: item.contact.id, fullName: item.contact.fullName, email: item.contact.email, phone: item.contact.phone, title: item.contact.title }
+      : null,
     attachments: item.attachments.map(attachmentToDto),
     quoteRevisions: visibleRevisions.map(quoteRevisionToDto),
     approvals: visibleRevisions.flatMap((revision) => revision.approvals.map(approvalToDto))
@@ -175,6 +183,8 @@ export class RfqStore {
     projectDetails: string;
     requestedBy: string;
     createdById: string;
+    companyId?: string;
+    contactId?: string;
   }): Promise<RfqRecord> {
     const row = await prisma.rfq.create({
       data: {
@@ -183,6 +193,8 @@ export class RfqStore {
         projectDetails: input.projectDetails,
         requestedBy: input.requestedBy,
         createdById: input.createdById,
+        companyId: input.companyId ?? null,
+        contactId: input.contactId ?? null,
         status: DbRfqStatus.NEW
       },
       include: rfqInclude

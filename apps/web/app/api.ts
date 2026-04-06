@@ -191,8 +191,61 @@ export async function createRfq(input: {
   deadline: string;
   projectDetails: string;
   requestedBy: string;
+  companyId?: string;
+  contactId?: string;
 }): Promise<RfqRecord> {
   return postAuthenticated<RfqRecord>("/api/rfqs", input);
+}
+
+// ── Company / Contact ──
+
+export type CompanyContact = {
+  id: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  title: string | null;
+};
+
+export type CompanyItem = {
+  id: string;
+  name: string;
+  sector: string | null;
+  country: string | null;
+  city: string | null;
+  website: string | null;
+  notes: string | null;
+  rfqCount: number;
+  contacts: CompanyContact[];
+};
+
+export async function searchCompanies(query?: string): Promise<CompanyItem[]> {
+  const qs = query ? `?q=${encodeURIComponent(query)}` : "";
+  return (await request<CompanyItem[]>(`/api/companies${qs}`)) ?? [];
+}
+
+export async function createCompany(input: {
+  name: string;
+  sector?: string;
+  country?: string;
+  city?: string;
+  website?: string;
+  notes?: string;
+  contact?: {
+    fullName: string;
+    email?: string;
+    phone?: string;
+    title?: string;
+  };
+}): Promise<CompanyItem> {
+  return postAuthenticated<CompanyItem>("/api/companies", input);
+}
+
+export async function addContactToCompany(
+  companyId: string,
+  input: { fullName: string; email?: string; phone?: string; title?: string }
+): Promise<CompanyContact> {
+  return postAuthenticated<CompanyContact>(`/api/companies/${companyId}/contacts`, input);
 }
 
 export async function createQuoteRevision(

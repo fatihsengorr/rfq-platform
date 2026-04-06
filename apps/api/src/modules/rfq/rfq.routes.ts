@@ -18,7 +18,9 @@ const createRfqSchema = z.object({
   projectName: z.string().min(2),
   deadline: z.string().datetime(),
   projectDetails: z.string().min(10),
-  requestedBy: z.string().min(2)
+  requestedBy: z.string().min(2),
+  companyId: z.string().uuid().optional(),
+  contactId: z.string().uuid().optional(),
 });
 
 const createRevisionSchema = z.object({
@@ -237,7 +239,9 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
       deadline: payload.deadline,
       projectDetails: payload.projectDetails,
       requestedBy: payload.requestedBy,
-      createdById: session.user.id
+      createdById: session.user.id,
+      companyId: payload.companyId,
+      contactId: payload.contactId,
     });
 
     // Email: notify Istanbul managers about new RFQ

@@ -66,7 +66,10 @@ export async function createRfqAction(_prev: ActionResult, formData: FormData): 
     return { status: "error", message: "You do not have permission to create an RFQ." };
   }
 
-  const requestedBy = session.user.fullName.trim();
+  // Company & contact from form (set by CompanyCombobox hidden inputs)
+  const companyId = (formData.get("companyId") as string)?.trim() || undefined;
+  const contactId = (formData.get("contactId") as string)?.trim() || undefined;
+  const requestedBy = (formData.get("requestedBy") as string)?.trim() || session.user.fullName.trim();
 
   if (!projectName || !requestedBy || !deadlineRaw || !projectDetails) {
     return { status: "error", message: "All fields are required." };
@@ -87,6 +90,8 @@ export async function createRfqAction(_prev: ActionResult, formData: FormData): 
       requestedBy,
       deadline,
       projectDetails,
+      companyId,
+      contactId,
     });
 
     let fileMessage = "";

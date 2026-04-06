@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState, useCallback } from "react";
 import { IDLE_RESULT } from "../../../lib/action-result";
 import { createRfqAction } from "./actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FormMessage } from "@/components/ui/form-message";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
+import {
+  CompanyCombobox,
+  type CompanyOption,
+  type ContactOption,
+  type NewCompanyData,
+} from "@/components/ui/company-combobox";
 import { ArrowLeft, Plus, Loader2 } from "lucide-react";
 import Link from "next/link";
 
@@ -20,12 +26,24 @@ type CreateRfqFormProps = {
 
 export function CreateRfqForm({ requestedBy }: CreateRfqFormProps) {
   const [state, formAction, pending] = useActionState(createRfqAction, IDLE_RESULT);
+  const [selectedCompany, setSelectedCompany] = useState<CompanyOption | null>(null);
+  const [selectedContact, setSelectedContact] = useState<ContactOption | null>(null);
 
   useEffect(() => {
     if (state.status === "success" && state.redirectTo) {
       window.location.href = state.redirectTo;
     }
   }, [state]);
+
+  const handleNewCompany = useCallback(async (data: NewCompanyData): Promise<CompanyOption> => {
+    const res = await fetch("/api/companies-create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to create company");
+    return res.json();
+  }, []);
 
   return (
     <Card className="mt-4">
@@ -37,20 +55,25 @@ export function CreateRfqForm({ requestedBy }: CreateRfqFormProps) {
         <FormMessage state={state} />
 
         <form action={formAction} className="grid sm:grid-cols-2 gap-4">
+          {/* Company selector — full width */}
+          <div className="sm:col-span-2">
+            <CompanyCombobox
+              selectedCompany={selectedCompany}
+              selectedContact={selectedContact}
+              onCompanySelect={setSelectedCompany}
+              onContactSelect={setSelectedContact}
+              onNewCompany={handleNewCompany}
+            />
+          </div>
+
+          {/* If no company selected, show manual requestedBy */}
+          {!selectedCompany && (
+            <input type="hidden" name="requestedBy" value={requestedBy} />
+          )}
+
           <div className="grid gap-2">
             <Label htmlFor="projectName">Project Name</Label>
             <Input id="projectName" name="projectName" type="text" required minLength={2} />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="requestedBy">Requested By</Label>
-            <Input
-              id="requestedBy"
-              name="requestedBy"
-              type="text"
-              value={requestedBy}
-              readOnly
-              className="bg-muted"
-            />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="deadline">Deadline</Label>

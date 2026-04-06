@@ -96,7 +96,8 @@ export default async function RequestsPage({
   if (searchQuery) {
     rows = rows.filter((item) =>
       item.projectName.toLowerCase().includes(searchQuery) ||
-      item.requestedBy.toLowerCase().includes(searchQuery)
+      item.requestedBy.toLowerCase().includes(searchQuery) ||
+      (item.company?.name ?? "").toLowerCase().includes(searchQuery)
     );
   }
 
@@ -244,7 +245,7 @@ export default async function RequestsPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>Project</TableHead>
-                  <TableHead>Requested By</TableHead>
+                  <TableHead>Company</TableHead>
                   <TableHead>Assigned Pricing</TableHead>
                   <TableHead>Deadline</TableHead>
                   <TableHead>Status</TableHead>
@@ -259,7 +260,12 @@ export default async function RequestsPage({
                         {item.projectName}
                       </Link>
                     </TableCell>
-                    <TableCell className="text-sm">{item.requestedBy}</TableCell>
+                    <TableCell className="text-sm">
+                      {item.company?.name ?? item.requestedBy}
+                      {item.contact && (
+                        <span className="block text-xs text-muted-foreground">{item.contact.fullName}</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-sm">{item.assignedPricingUser ?? <span className="text-muted-foreground">—</span>}</TableCell>
                     <TableCell className="text-sm">
                       <div className="flex flex-col gap-1">

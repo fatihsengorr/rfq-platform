@@ -26,8 +26,13 @@ export function SummaryCard({ record }: SummaryCardProps) {
             {record.status !== "CLOSED" && <DeadlineBadge deadline={record.deadline} className="mt-1" />}
           </div>
           <div className="rounded-lg border border-border p-3">
-            <p className="text-xs font-semibold text-muted-foreground">Requested By</p>
-            <p className="mt-1 font-semibold text-sm">{record.requestedBy}</p>
+            <p className="text-xs font-semibold text-muted-foreground">Company</p>
+            <p className="mt-1 font-semibold text-sm">{record.company?.name ?? record.requestedBy}</p>
+            {record.contact && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {record.contact.fullName}{record.contact.title ? ` · ${record.contact.title}` : ""}
+              </p>
+            )}
           </div>
           <div className="rounded-lg border border-border p-3">
             <p className="text-xs font-semibold text-muted-foreground">Assigned Pricing</p>

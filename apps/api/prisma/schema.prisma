@@ -77,6 +77,11 @@ model Rfq {
   assignedBy            User?       @relation("rfq_assigned_by_user", fields: [assignedById], references: [id])
   assignedAt            DateTime?
 
+  companyId      String?
+  company        CustomerCompany? @relation(fields: [companyId], references: [id])
+  contactId      String?
+  contact        Contact?         @relation(fields: [contactId], references: [id])
+
   attachments    Attachment[]
   quoteRevisions QuoteRevision[]
   notifications  Notification[]
@@ -137,18 +142,20 @@ model Attachment {
   uploadedBy        User           @relation("attachment_uploaded_by", fields: [uploadedById], references: [id])
 }
 
-// Future CRM extension models
 model CustomerCompany {
   id             String    @id @default(uuid())
   name           String
+  sector         String?
   country        String?
   city           String?
   website        String?
+  notes          String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   contacts       Contact[]
   leads          Lead[]
+  rfqs           Rfq[]
 }
 
 model Contact {
@@ -162,6 +169,7 @@ model Contact {
 
   companyId        String
   company          CustomerCompany  @relation(fields: [companyId], references: [id])
+  rfqs             Rfq[]
 }
 
 model Lead {

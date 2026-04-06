@@ -51,6 +51,22 @@ export type Approval = {
   decidedAt: string;
 };
 
+export type CompanySummary = {
+  id: string;
+  name: string;
+  sector: string | null;
+  country: string | null;
+  city: string | null;
+};
+
+export type ContactSummary = {
+  id: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  title: string | null;
+};
+
 export type RfqRecord = {
   id: string;
   projectName: string;
@@ -63,6 +79,8 @@ export type RfqRecord = {
   assignedPricingUser: string | null;
   assignedBy: string | null;
   assignedAt: string | null;
+  company: CompanySummary | null;
+  contact: ContactSummary | null;
   attachments: Attachment[];
   quoteRevisions: QuoteRevision[];
   approvals: Approval[];
