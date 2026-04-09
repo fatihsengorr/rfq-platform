@@ -1,4 +1,6 @@
 const APP_NAME = "RFQ Platform";
+const APP_WEB_BASE_URL = process.env.APP_WEB_BASE_URL ?? "http://localhost:3000";
+const LOGO_URL = `${APP_WEB_BASE_URL}/gorhan-logo-white.svg`;
 
 function layout(title: string, body: string): string {
   return `<!DOCTYPE html>
@@ -7,7 +9,8 @@ function layout(title: string, body: string): string {
 <body style="margin:0;padding:0;background:#faf6f1;font-family:system-ui,-apple-system,sans-serif">
   <div style="max-width:560px;margin:32px auto;background:#fff;border-radius:12px;border:1px solid #e8ddd0;overflow:hidden">
     <div style="background:linear-gradient(135deg,#d4924b,#c17d3a);padding:20px 24px">
-      <h1 style="margin:0;color:#fff;font-size:18px">${APP_NAME}</h1>
+      <img src="${LOGO_URL}" alt="Gorhan" width="120" style="display:block;margin-bottom:8px" />
+      <p style="margin:0;color:rgba(255,255,255,0.85);font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase">${APP_NAME}</p>
     </div>
     <div style="padding:24px">
       <h2 style="margin:0 0 12px;font-size:16px;color:#2c1810">${title}</h2>
