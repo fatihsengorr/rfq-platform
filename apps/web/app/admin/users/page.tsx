@@ -38,7 +38,7 @@ export default async function AdminUsersPage() {
         description="Create users, assign office roles, and control access visibility."
       />
       <CreateUserForm />
-      <UserDirectory users={users} />
+      <UserDirectory users={users} currentUserId={session.user.id} />
     </main>
   );
 }

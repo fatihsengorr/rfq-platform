@@ -3,10 +3,13 @@ import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } fr
 import { promisify } from "node:util";
 import { ApiError } from "../../errors.js";
 import { prisma } from "../../prisma.js";
+import { sendNotification } from "../email/email.service.js";
+import { passwordResetNotification, inviteUserNotification } from "../email/email.templates.js";
 
 const SCRYPT_KEY_LENGTH = 64;
 const SCRYPT_SALT_LENGTH = 16;
 const RESET_TOKEN_TTL_MINUTES = 30;
+const INVITE_TOKEN_TTL_HOURS = 48;
 const RESET_TOKEN_LENGTH_BYTES = 32;
 const SESSION_TTL_HOURS = 12;
 const scrypt = promisify(scryptCallback);
@@ -341,6 +344,7 @@ export async function issuePasswordReset(email: string) {
     select: {
       id: true,
       email: true,
+      fullName: true,
       isActive: true
     }
   });
@@ -368,16 +372,88 @@ export async function issuePasswordReset(email: string) {
       data: {
         tokenHash,
         expiresAt,
+        purpose: "reset",
         userId: user.id
       }
     })
   ]);
 
-  const debugResetUrl = `${APP_WEB_BASE_URL}/reset-password?token=${rawToken}`;
-  console.warn(`Password reset token issued for ${user.email}: ${debugResetUrl}`);
+  const resetUrl = `${APP_WEB_BASE_URL}/reset-password?token=${rawToken}`;
+  console.warn(`Password reset token issued for ${user.email}: ${resetUrl}`);
+
+  // Send password reset email (fire-and-forget)
+  const { subject, html } = passwordResetNotification(user.fullName, resetUrl, RESET_TOKEN_TTL_MINUTES);
+  sendNotification({
+    type: "PASSWORD_RESET",
+    recipientId: user.id,
+    recipientEmail: user.email,
+    subject,
+    html,
+  }).catch((err) => console.error("Failed to send password reset email:", err));
 
   if (process.env.NODE_ENV !== "production") {
-    return { success: true, debugResetToken: rawToken, debugResetUrl };
+    return { success: true, debugResetToken: rawToken, debugResetUrl: resetUrl };
+  }
+
+  return { success: true };
+}
+
+export async function issueInviteToken(userId: string, invitedByName: string) {
+  const now = new Date();
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      fullName: true,
+      isActive: true
+    }
+  });
+
+  if (!user) {
+    throw new ApiError("USER_NOT_FOUND", "User not found.", 404);
+  }
+
+  const rawToken = randomBytes(RESET_TOKEN_LENGTH_BYTES).toString("hex");
+  const tokenHash = hashResetToken(rawToken);
+  const expiresAt = new Date(now.getTime() + INVITE_TOKEN_TTL_HOURS * 60 * 60 * 1000);
+
+  await prisma.$transaction([
+    prisma.passwordResetToken.updateMany({
+      where: {
+        userId: user.id,
+        usedAt: null
+      },
+      data: {
+        usedAt: now
+      }
+    }),
+    prisma.passwordResetToken.create({
+      data: {
+        tokenHash,
+        expiresAt,
+        purpose: "invite",
+        userId: user.id
+      }
+    })
+  ]);
+
+  const setPasswordUrl = `${APP_WEB_BASE_URL}/set-password?token=${rawToken}`;
+  console.warn(`Invite token issued for ${user.email}: ${setPasswordUrl}`);
+
+  // Send invite email (fire-and-forget)
+  const { subject, html } = inviteUserNotification(user.fullName, invitedByName, setPasswordUrl, INVITE_TOKEN_TTL_HOURS);
+  sendNotification({
+    type: "USER_INVITE",
+    recipientId: user.id,
+    recipientEmail: user.email,
+    subject,
+    html,
+  }).catch((err) => console.error("Failed to send invite email:", err));
+
+  if (process.env.NODE_ENV !== "production") {
+    return { success: true, debugToken: rawToken, debugUrl: setPasswordUrl };
   }
 
   return { success: true };

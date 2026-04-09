@@ -5,13 +5,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Users, FileText, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
-type LoginSearchParams = Promise<{ callbackUrl?: string; error?: string }>;
+type LoginSearchParams = Promise<{ callbackUrl?: string; error?: string; status?: string }>;
 
 function resolveLoginError(error?: string) {
   if (!error) return null;
   if (error === "CredentialsSignin") return "Invalid email or password.";
   if (error === "AccessDenied") return "This account is inactive or access is denied.";
   return "Sign in failed. Please try again.";
+}
+
+function resolveStatusMessage(status?: string) {
+  if (!status) return null;
+  if (status === "reset_success") return "Password reset successfully. Please sign in with your new password.";
+  if (status === "account_activated") return "Account activated! Please sign in with your new password.";
+  return null;
 }
 
 export default async function LoginPage({ searchParams }: { searchParams: LoginSearchParams }) {
@@ -24,6 +31,7 @@ export default async function LoginPage({ searchParams }: { searchParams: LoginS
   const params = await searchParams;
   const callbackUrl = params.callbackUrl && params.callbackUrl.startsWith("/") ? params.callbackUrl : "/requests";
   const errorMessage = resolveLoginError(params.error);
+  const statusMessage = resolveStatusMessage(params.status);
 
   return (
     <main className="min-h-screen flex items-center justify-center p-4 bg-background">
@@ -94,6 +102,11 @@ export default async function LoginPage({ searchParams }: { searchParams: LoginS
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {statusMessage && (
+              <div className="mb-4 rounded-lg border border-success/30 bg-success/5 px-3 py-2 text-sm font-semibold text-success">
+                {statusMessage}
+              </div>
+            )}
             <LoginForm callbackUrl={callbackUrl} initialError={errorMessage} />
             <p className="mt-4 text-sm">
               <Link href="/forgot-password" className="text-muted-foreground hover:text-primary transition-colors">

@@ -2,34 +2,54 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createUser, isApiClientError, updateUserActive, updateUserPassword, updateUserRole } from "../../api";
+import { createUser, isApiClientError, resendInvite, updateUserActive, updateUserPassword, updateUserRole } from "../../api";
 import type { ActionResult } from "../../../lib/action-result";
 
 export async function createUserAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const email = String(formData.get("email") ?? "").trim();
   const fullName = String(formData.get("fullName") ?? "").trim();
   const role = String(formData.get("role") ?? "").trim() as "LONDON_SALES" | "ISTANBUL_PRICING" | "ISTANBUL_MANAGER" | "ADMIN";
-  const password = String(formData.get("password") ?? "").trim();
-  const isActive = String(formData.get("isActive") ?? "") === "true";
+  const isActive = String(formData.get("isActive") ?? "true") === "true";
 
-  if (!email || !fullName || !role || !password) {
-    return { status: "error", message: "All fields are required." };
+  if (!email || !fullName || !role) {
+    return { status: "error", message: "Name, email, and role are required." };
   }
 
   try {
-    await createUser({ email, fullName, role, password, isActive });
+    await createUser({ email, fullName, role, isActive });
     revalidatePath("/admin/users");
-    return { status: "success", message: "User created successfully." };
+    return { status: "success", message: "User created. An invitation email has been sent to set their password." };
   } catch (error) {
     if (isApiClientError(error)) {
       if (error.code === "UNAUTHORIZED") redirect("/login");
       if (error.code === "USER_EMAIL_EXISTS") return { status: "error", message: "Email is already in use." };
-      if (error.code === "WEAK_PASSWORD") return { status: "error", message: "Password policy: minimum 12 chars, uppercase, lowercase, number, special char." };
       if (error.code === "FORBIDDEN") return { status: "error", message: "Only admin can manage users." };
       if (error.code === "NETWORK_ERROR") return { status: "error", message: "API is unreachable." };
     }
 
     return { status: "error", message: "User creation failed." };
+  }
+}
+
+export async function resendInviteAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const userId = String(formData.get("userId") ?? "").trim();
+
+  if (!userId) {
+    return { status: "error", message: "User selection is required." };
+  }
+
+  try {
+    await resendInvite(userId);
+    return { status: "success", message: "Invitation email has been resent." };
+  } catch (error) {
+    if (isApiClientError(error)) {
+      if (error.code === "UNAUTHORIZED") redirect("/login");
+      if (error.code === "FORBIDDEN") return { status: "error", message: "Only admin can manage users." };
+      if (error.code === "USER_NOT_FOUND") return { status: "error", message: "User not found." };
+      if (error.code === "NETWORK_ERROR") return { status: "error", message: "API is unreachable." };
+    }
+
+    return { status: "error", message: "Failed to resend invitation." };
   }
 }
 

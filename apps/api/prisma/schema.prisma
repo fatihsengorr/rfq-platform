@@ -224,6 +224,7 @@ model Notification {
 model PasswordResetToken {
   id         String   @id @default(uuid())
   tokenHash  String   @unique
+  purpose    String   @default("reset")   // "reset" | "invite"
   expiresAt  DateTime
   usedAt     DateTime?
   createdAt  DateTime @default(now())

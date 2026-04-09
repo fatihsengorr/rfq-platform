@@ -28,6 +28,8 @@ export type ManagedUser = {
   email: string;
   role: SessionUser["role"];
   isActive: boolean;
+  hasPassword: boolean;
+  inviteStatus: "none" | "pending" | "expired";
   createdAt: string;
   updatedAt: string;
 };
@@ -369,10 +371,14 @@ export async function createUser(input: {
   email: string;
   fullName: string;
   role: "LONDON_SALES" | "ISTANBUL_PRICING" | "ISTANBUL_MANAGER" | "ADMIN";
-  password: string;
+  password?: string;
   isActive: boolean;
 }): Promise<ManagedUser> {
   return postAuthenticated<ManagedUser>("/api/users", input);
+}
+
+export async function resendInvite(userId: string): Promise<{ success: boolean }> {
+  return postAuthenticated<{ success: boolean }>(`/api/users/${userId}/resend-invite`, {});
 }
 
 export async function updateUserRole(

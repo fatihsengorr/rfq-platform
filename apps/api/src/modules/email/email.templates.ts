@@ -136,6 +136,55 @@ export function newCommentNotification(
   };
 }
 
+export function passwordResetNotification(
+  fullName: string,
+  resetUrl: string,
+  expiresMinutes: number,
+): { subject: string; html: string } {
+  return {
+    subject: "Password Reset Request",
+    html: layout(
+      "Reset your password",
+      `<p style="margin:0;color:#4a3f35;font-size:14px;line-height:1.6">
+        Hi <strong>${fullName}</strong>,
+      </p>
+      <p style="margin:8px 0 0;color:#4a3f35;font-size:14px;line-height:1.6">
+        We received a request to reset your password. Click the button below to set a new one.
+        This link will expire in <strong>${expiresMinutes} minutes</strong>.
+      </p>
+      ${button(resetUrl, "Reset Password")}
+      <p style="margin:16px 0 0;color:#8a7968;font-size:12px;line-height:1.5">
+        If you didn't request this, you can safely ignore this email. Your password won't change.
+      </p>`,
+    ),
+  };
+}
+
+export function inviteUserNotification(
+  fullName: string,
+  invitedByName: string,
+  setPasswordUrl: string,
+  expiresHours: number,
+): { subject: string; html: string } {
+  return {
+    subject: `You're invited to ${APP_NAME}`,
+    html: layout(
+      "Welcome to RFQ Platform",
+      `<p style="margin:0;color:#4a3f35;font-size:14px;line-height:1.6">
+        Hi <strong>${fullName}</strong>,
+      </p>
+      <p style="margin:8px 0 0;color:#4a3f35;font-size:14px;line-height:1.6">
+        <strong>${invitedByName}</strong> has created an account for you on <strong>${APP_NAME}</strong>.
+        To get started, set your password by clicking the button below.
+      </p>
+      ${button(setPasswordUrl, "Set Your Password")}
+      <p style="margin:16px 0 0;color:#8a7968;font-size:12px;line-height:1.5">
+        This link will expire in <strong>${expiresHours} hours</strong>. If it expires, ask your administrator to resend the invitation.
+      </p>`,
+    ),
+  };
+}
+
 export function deadlineWarningNotification(
   projectName: string,
   deadline: string,

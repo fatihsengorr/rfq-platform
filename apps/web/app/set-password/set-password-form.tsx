@@ -2,20 +2,19 @@
 
 import { useActionState, useEffect } from "react";
 import { IDLE_RESULT } from "../../lib/action-result";
-import { resetPasswordAction } from "./actions";
+import { setPasswordAction } from "./actions";
 import { FormMessage } from "@/components/ui/form-message";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { KeyRound, Loader2 } from "lucide-react";
 
-type ResetPasswordFormProps = {
-  defaultToken?: string;
+type SetPasswordFormProps = {
+  token: string;
 };
 
-export function ResetPasswordForm({ defaultToken }: ResetPasswordFormProps) {
-  const [state, formAction, pending] = useActionState(resetPasswordAction, IDLE_RESULT);
-  const hasToken = !!defaultToken;
+export function SetPasswordForm({ token }: SetPasswordFormProps) {
+  const [state, formAction, pending] = useActionState(setPasswordAction, IDLE_RESULT);
 
   useEffect(() => {
     if (state.status === "success" && state.redirectTo) {
@@ -28,26 +27,10 @@ export function ResetPasswordForm({ defaultToken }: ResetPasswordFormProps) {
       <FormMessage state={state} />
 
       <form action={formAction} className="grid gap-4">
-        {hasToken ? (
-          <input type="hidden" name="token" value={defaultToken} />
-        ) : (
-          <div className="grid gap-2">
-            <Label htmlFor="token">Reset Token</Label>
-            <Input
-              id="token"
-              name="token"
-              placeholder="Paste the token from your email"
-              required
-              autoFocus
-            />
-            <p className="text-xs text-muted-foreground">
-              Check your email for the password reset link. You can also paste the token here directly.
-            </p>
-          </div>
-        )}
+        <input type="hidden" name="token" value={token} />
 
         <div className="grid gap-2">
-          <Label htmlFor="newPassword">New Password</Label>
+          <Label htmlFor="newPassword">Password</Label>
           <Input
             id="newPassword"
             name="newPassword"
@@ -55,7 +38,7 @@ export function ResetPasswordForm({ defaultToken }: ResetPasswordFormProps) {
             placeholder="Min 12 characters, mixed case, number, special char"
             minLength={12}
             required
-            autoFocus={hasToken}
+            autoFocus
           />
         </div>
 
@@ -65,7 +48,7 @@ export function ResetPasswordForm({ defaultToken }: ResetPasswordFormProps) {
             id="confirmPassword"
             name="confirmPassword"
             type="password"
-            placeholder="Repeat your new password"
+            placeholder="Repeat your password"
             minLength={12}
             required
           />
@@ -74,7 +57,7 @@ export function ResetPasswordForm({ defaultToken }: ResetPasswordFormProps) {
 
         <Button type="submit" disabled={pending}>
           {pending ? <Loader2 className="size-4 animate-spin" /> : <KeyRound className="size-4" />}
-          Reset Password
+          Set Password & Activate Account
         </Button>
       </form>
     </>
