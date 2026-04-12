@@ -1,14 +1,12 @@
+import { config } from "./config.js";
 import { buildServer } from "./server.js";
-
-const port = Number(process.env.PORT ?? 4000);
-const host = process.env.HOST ?? "0.0.0.0";
 
 const server = buildServer();
 
 server
-  .listen({ port, host })
+  .listen({ port: config.port, host: config.host })
   .then(() => {
-    console.log(`API running on http://${host}:${port}`);
+    console.log(`API running on http://${config.host}:${config.port}`);
   })
   .catch((error) => {
     server.log.error(error);

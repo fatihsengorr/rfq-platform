@@ -1,8 +1,8 @@
 import type { FastifyPluginAsync } from "fastify";
 import { UserRole as DbUserRole } from "@prisma/client";
 import { z } from "zod";
-import { ApiError, isApiError } from "../../errors.js";
-import { extractBearerToken, resolveAccessToken } from "../auth/auth.service.js";
+import { sendError, requireAuth } from "../../middleware.js";
+import { config } from "../../config.js";
 import { rfqStore } from "./rfq.store.js";
 import { downloadAttachmentFromStorage, uploadAttachmentToStorage, getPresignedUploadUrl, getPresignedDownloadUrl } from "./storage.js";
 import { type UserRole as RfqRole } from "./rfq.types.js";
@@ -92,33 +92,6 @@ const supportedAttachmentExtensions = new Set([
 
 const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024;
 
-function sendError(reply: { status: (code: number) => { send: (body: unknown) => unknown } }, error: unknown) {
-  if (isApiError(error)) {
-    return reply.status(error.status).send({ code: error.code, message: error.message });
-  }
-
-  return reply.status(500).send({ code: "INTERNAL_ERROR", message: "An unexpected server error occurred." });
-}
-
-async function requireAuthSession(
-  request: { headers: { authorization?: string | string[] } },
-  reply: { status: (code: number) => { send: (body: unknown) => unknown } }
-) {
-  const token = extractBearerToken(request.headers.authorization);
-
-  if (!token) {
-    sendError(reply, new ApiError("UNAUTHORIZED", "Authentication token is required.", 401));
-    return null;
-  }
-
-  try {
-    return await resolveAccessToken(token);
-  } catch (error) {
-    sendError(reply, error);
-    return null;
-  }
-}
-
 function mapDbRoleToRfqRole(role: DbUserRole): RfqRole {
   if (role === DbUserRole.LONDON_SALES) return "LONDON_SALES";
   if (role === DbUserRole.ISTANBUL_PRICING) return "ISTANBUL_PRICING";
@@ -155,7 +128,7 @@ function toSafeDownloadName(fileName: string): string {
 
 export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
   server.get("/", async (request, reply) => {
-    const session = await requireAuthSession(request, reply);
+    const session = await requireAuth(request, reply);
 
     if (!session) {
       return;
@@ -166,7 +139,7 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
   });
 
   server.get("/pricing-users", async (request, reply) => {
-    const session = await requireAuthSession(request, reply);
+    const session = await requireAuth(request, reply);
 
     if (!session) {
       return;
@@ -185,7 +158,7 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
   });
 
   server.get("/:id", async (request, reply) => {
-    const session = await requireAuthSession(request, reply);
+    const session = await requireAuth(request, reply);
 
     if (!session) {
       return;
@@ -208,7 +181,7 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
   });
 
   server.post("/", async (request, reply) => {
-    const session = await requireAuthSession(request, reply);
+    const session = await requireAuth(request, reply);
 
     if (!session) {
       return;
@@ -246,7 +219,7 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
 
     // Email: notify Istanbul managers about new RFQ
     const managers = await rfqStore.getManagerUsers();
-    const webBase = process.env.APP_WEB_BASE_URL ?? "http://localhost:3000";
+    const webBase = config.webBaseUrl;
     const rfqUrl = `${webBase}/requests/${created.id}`;
     for (const mgr of managers) {
       const tpl = newRfqNotification(payload.projectName, payload.requestedBy, payload.deadline, session.user.fullName, rfqUrl);
@@ -257,7 +230,7 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
   });
 
   server.patch("/:id/request", async (request, reply) => {
-    const session = await requireAuthSession(request, reply);
+    const session = await requireAuth(request, reply);
 
     if (!session) {
       return;
@@ -297,7 +270,7 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
   });
 
   server.post("/:id/assignment", async (request, reply) => {
-    const session = await requireAuthSession(request, reply);
+    const session = await requireAuth(request, reply);
 
     if (!session) {
       return;
@@ -337,7 +310,7 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
       // Email: notify assigned pricing user
       const assignee = await rfqStore.getUserEmail(parsed.data.assignedPricingUserId);
       if (assignee) {
-        const webBase = process.env.APP_WEB_BASE_URL ?? "http://localhost:3000";
+        const webBase = config.webBaseUrl;
         const tpl = assignmentNotification(updated.projectName, session.user.fullName, `${webBase}/requests/${params.data.id}`);
         sendNotification({ type: "ASSIGNMENT", recipientId: assignee.id, recipientEmail: assignee.email, rfqId: params.data.id, ...tpl });
       }
@@ -349,7 +322,7 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
   });
 
   server.post("/:id/quotes", async (request, reply) => {
-    const session = await requireAuthSession(request, reply);
+    const session = await requireAuth(request, reply);
 
     if (!session) {
       return;
@@ -391,7 +364,7 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
       if (parsed.data.autoSubmitForApproval) {
         const managers = await rfqStore.getManagerUsers();
         const rfqDetail = await rfqStore.getById(params.data.id, "ADMIN", "");
-        const webBase = process.env.APP_WEB_BASE_URL ?? "http://localhost:3000";
+        const webBase = config.webBaseUrl;
         const rfqUrl = `${webBase}/requests/${params.data.id}`;
         const projectName = rfqDetail?.projectName ?? "RFQ";
         for (const mgr of managers) {
@@ -407,7 +380,7 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
   });
 
   server.post("/:id/approval", async (request, reply) => {
-    const session = await requireAuthSession(request, reply);
+    const session = await requireAuth(request, reply);
 
     if (!session) {
       return;
@@ -447,7 +420,7 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
       // Email: notify pricing user + RFQ creator about the decision
       const rfqDetail = await rfqStore.getById(params.data.id, "ADMIN", "");
       if (rfqDetail) {
-        const webBase = process.env.APP_WEB_BASE_URL ?? "http://localhost:3000";
+        const webBase = config.webBaseUrl;
         const rfqUrl = `${webBase}/requests/${params.data.id}`;
         const latestRevision = [...rfqDetail.quoteRevisions].sort((a, b) => b.versionNumber - a.versionNumber)[0];
         const versionNumber = latestRevision?.versionNumber ?? 1;
@@ -481,7 +454,7 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
   });
 
   server.patch("/:id/status", async (request, reply) => {
-    const session = await requireAuthSession(request, reply);
+    const session = await requireAuth(request, reply);
 
     if (!session) {
       return;
@@ -521,7 +494,7 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
   });
 
   server.post("/:id/attachments", async (request, reply) => {
-    const session = await requireAuthSession(request, reply);
+    const session = await requireAuth(request, reply);
 
     if (!session) {
       return;
@@ -606,7 +579,7 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
   });
 
   server.get("/attachments/:attachmentId/download", async (request, reply) => {
-    const session = await requireAuthSession(request, reply);
+    const session = await requireAuth(request, reply);
 
     if (!session) {
       return;
@@ -643,7 +616,7 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
 
   // ── Presigned Upload URL ──────────────────────────────────────────
   server.post("/:id/attachments/presign-upload", async (request, reply) => {
-    const session = await requireAuthSession(request, reply);
+    const session = await requireAuth(request, reply);
     if (!session) return;
 
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
@@ -678,7 +651,7 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
 
   // ── Confirm Upload (after presigned upload completes) ─────────────
   server.post("/:id/attachments/confirm-upload", async (request, reply) => {
-    const session = await requireAuthSession(request, reply);
+    const session = await requireAuth(request, reply);
     if (!session) return;
 
     const role = mapDbRoleToRfqRole(session.user.role);
@@ -712,7 +685,7 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
 
   // ── Presigned Download URL ────────────────────────────────────────
   server.get("/attachments/:attachmentId/presign-download", async (request, reply) => {
-    const session = await requireAuthSession(request, reply);
+    const session = await requireAuth(request, reply);
     if (!session) return;
 
     const params = z.object({ attachmentId: z.string().uuid() }).safeParse(request.params);

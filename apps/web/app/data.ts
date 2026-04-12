@@ -1,81 +1,17 @@
-export type RfqStatus =
-  | "NEW"
-  | "IN_REVIEW"
-  | "PRICING_IN_PROGRESS"
-  | "PENDING_MANAGER_APPROVAL"
-  | "QUOTED"
-  | "REVISION_REQUESTED"
-  | "CLOSED";
+// Re-export domain types from the shared package so existing imports keep working.
+export type {
+  RfqStatus,
+  Attachment,
+  QuoteRevision,
+  Approval,
+  CompanySummary,
+  ContactSummary,
+  RfqRecord,
+} from "@crm/shared";
 
-export type Attachment = {
-  id: string;
-  fileName: string;
-  mimeType: string;
-  url: string;
-  uploadedAt: string;
-  uploadedBy: string;
-};
+export { RFQ_STATUSES as rfqStatuses } from "@crm/shared";
 
-export type QuoteRevision = {
-  id: string;
-  versionNumber: number;
-  currency: "GBP" | "EUR" | "USD" | "TRY";
-  totalAmount: number;
-  notes: string;
-  status: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED";
-  createdAt: string;
-  createdBy: string;
-  attachments: Attachment[];
-};
-
-export type Approval = {
-  id: string;
-  quoteRevisionId: string;
-  decidedBy: string;
-  decision: "APPROVED" | "REJECTED";
-  comment: string;
-  decidedAt: string;
-};
-
-export type CompanySummary = {
-  id: string;
-  name: string;
-  sector: string | null;
-  country: string | null;
-  city: string | null;
-};
-
-export type ContactSummary = {
-  id: string;
-  fullName: string;
-  email: string | null;
-  phone: string | null;
-  title: string | null;
-};
-
-export type RfqRecord = {
-  id: string;
-  projectName: string;
-  deadline: string;
-  projectDetails: string;
-  requestedBy: string;
-  status: RfqStatus;
-  createdAt: string;
-  assignedPricingUserId: string | null;
-  assignedPricingUser: string | null;
-  assignedBy: string | null;
-  assignedAt: string | null;
-  company: CompanySummary | null;
-  contact: ContactSummary | null;
-  attachments: Attachment[];
-  quoteRevisions: QuoteRevision[];
-  approvals: Approval[];
-};
-
-export const rfqStatuses: RfqStatus[] = [
-  "NEW", "IN_REVIEW", "PRICING_IN_PROGRESS",
-  "PENDING_MANAGER_APPROVAL", "QUOTED", "REVISION_REQUESTED", "CLOSED"
-];
+import type { RfqRecord, RfqStatus } from "@crm/shared";
 
 export function statusLabel(status: RfqStatus) {
   const labels: Record<RfqStatus, string> = {

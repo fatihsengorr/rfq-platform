@@ -1,10 +1,10 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { ApiError, isApiError } from "../../errors.js";
+import { ApiError } from "../../errors.js";
+import { config } from "../../config.js";
+import { sendError, extractRequestToken } from "../../middleware.js";
 import {
   changeOwnPassword,
-  extractSessionTokenFromCookie,
-  extractBearerToken,
   issuePasswordReset,
   loginWithPassword,
   revokeAccessToken,
@@ -32,7 +32,7 @@ const changePasswordSchema = z.object({
   newPassword: z.string().min(1)
 });
 
-const IS_PROD = process.env.NODE_ENV === "production";
+const IS_PROD = config.isProd;
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
 
 function buildSessionCookie(token: string) {
@@ -43,17 +43,6 @@ function buildClearedSessionCookie() {
   return `${SESSION_COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${IS_PROD ? "; Secure" : ""}`;
 }
 
-function extractRequestToken(request: { headers: { authorization?: string | string[]; cookie?: string } }) {
-  return extractBearerToken(request.headers.authorization) ?? extractSessionTokenFromCookie(request.headers.cookie);
-}
-
-function sendError(reply: { status: (code: number) => { send: (body: unknown) => unknown } }, error: unknown) {
-  if (isApiError(error)) {
-    return reply.status(error.status).send({ code: error.code, message: error.message });
-  }
-
-  return reply.status(500).send({ code: "INTERNAL_ERROR", message: "An unexpected server error occurred." });
-}
 
 export const registerAuthRoutes: FastifyPluginAsync = async (server) => {
   server.post("/login", async (request, reply) => {

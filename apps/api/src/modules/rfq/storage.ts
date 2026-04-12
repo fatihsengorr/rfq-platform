@@ -8,27 +8,21 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { ApiError } from "../../errors.js";
+import { config } from "../../config.js";
 
-const STORAGE_ENDPOINT = process.env.STORAGE_ENDPOINT ?? "localhost";
-const STORAGE_PORT = Number(process.env.STORAGE_PORT ?? "9000");
-const STORAGE_USE_SSL = String(process.env.STORAGE_USE_SSL ?? "false").toLowerCase() === "true";
-const STORAGE_ACCESS_KEY = process.env.STORAGE_ACCESS_KEY ?? "minio";
-const STORAGE_SECRET_KEY = process.env.STORAGE_SECRET_KEY ?? "minio123";
-const STORAGE_REGION = process.env.STORAGE_REGION ?? "us-east-1";
-const STORAGE_BUCKET = process.env.STORAGE_BUCKET ?? "rfq-attachments";
-
-const isAwsS3 = STORAGE_ENDPOINT.includes("amazonaws.com");
+const { endpoint, port, useSsl, accessKey, secretKey, region, bucket } = config.storage;
+const isAwsS3 = endpoint.includes("amazonaws.com");
 
 const s3 = new S3Client({
-  region: STORAGE_REGION,
+  region,
   credentials: {
-    accessKeyId: STORAGE_ACCESS_KEY,
-    secretAccessKey: STORAGE_SECRET_KEY,
+    accessKeyId: accessKey,
+    secretAccessKey: secretKey,
   },
   ...(isAwsS3
     ? {}
     : {
-        endpoint: `${STORAGE_USE_SSL ? "https" : "http"}://${STORAGE_ENDPOINT}:${STORAGE_PORT}`,
+        endpoint: `${useSsl ? "https" : "http"}://${endpoint}:${port}`,
         forcePathStyle: true,
       }),
 });
@@ -40,11 +34,11 @@ async function ensureBucket() {
 
   ensureBucketTask = (async () => {
     try {
-      await s3.send(new HeadBucketCommand({ Bucket: STORAGE_BUCKET }));
+      await s3.send(new HeadBucketCommand({ Bucket: bucket }));
     } catch (err: unknown) {
       const status = (err as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode;
       if (status === 404) {
-        await s3.send(new CreateBucketCommand({ Bucket: STORAGE_BUCKET }));
+        await s3.send(new CreateBucketCommand({ Bucket: bucket }));
       } else {
         throw new ApiError("STORAGE_ERROR", "Storage bucket check failed.", 500);
       }
@@ -91,7 +85,7 @@ export async function getPresignedUploadUrl(input: {
   });
 
   const command = new PutObjectCommand({
-    Bucket: STORAGE_BUCKET,
+    Bucket: bucket,
     Key: storageKey,
     ContentType: input.mimeType || "application/octet-stream",
     ContentLength: input.sizeBytes,
@@ -107,7 +101,7 @@ export async function getPresignedDownloadUrl(storageKey: string, fileName: stri
   await ensureBucket();
 
   const command = new GetObjectCommand({
-    Bucket: STORAGE_BUCKET,
+    Bucket: bucket,
     Key: storageKey,
     ResponseContentDisposition: `inline; filename="${safeFileName(fileName)}"`,
   });
@@ -135,7 +129,7 @@ export async function uploadAttachmentToStorage(input: {
 
   await s3.send(
     new PutObjectCommand({
-      Bucket: STORAGE_BUCKET,
+      Bucket: bucket,
       Key: storageKey,
       Body: input.bytes,
       ContentType: input.mimeType || "application/octet-stream",
@@ -151,7 +145,7 @@ export async function downloadAttachmentFromStorage(storageKey: string) {
 
   const result = await s3.send(
     new GetObjectCommand({
-      Bucket: STORAGE_BUCKET,
+      Bucket: bucket,
       Key: storageKey,
     }),
   );

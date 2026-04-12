@@ -2,6 +2,7 @@ import { UserRole } from "@prisma/client";
 import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { ApiError } from "../../errors.js";
+import { config } from "../../config.js";
 import { prisma } from "../../prisma.js";
 import { sendNotification } from "../email/email.service.js";
 import { passwordResetNotification, inviteUserNotification } from "../email/email.templates.js";
@@ -13,17 +14,7 @@ const INVITE_TOKEN_TTL_HOURS = 48;
 const RESET_TOKEN_LENGTH_BYTES = 32;
 const SESSION_TTL_HOURS = 12;
 const scrypt = promisify(scryptCallback);
-const ALLOW_LEGACY_PASSWORD_UPGRADE =
-  (process.env.ALLOW_LEGACY_PASSWORD_UPGRADE ?? (process.env.NODE_ENV === "production" ? "false" : "true")) === "true";
-const APP_WEB_BASE_URL = process.env.APP_WEB_BASE_URL ?? "http://localhost:3000";
 export const SESSION_COOKIE_NAME = "rfq_session";
-
-const LEGACY_PASSWORD_UPGRADE: Record<string, string> = {
-  "sales@crm.local": "Pass123!",
-  "pricing@crm.local": "Pass123!",
-  "manager@crm.local": "Pass123!",
-  "admin@crm.local": "Pass123!"
-};
 
 let bootstrapChecked = false;
 
@@ -111,9 +102,9 @@ async function ensureBootstrapAdmin() {
     return;
   }
 
-  const bootstrapEmail = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase();
-  const bootstrapPassword = process.env.BOOTSTRAP_ADMIN_PASSWORD?.trim();
-  const bootstrapName = process.env.BOOTSTRAP_ADMIN_NAME?.trim() || "Bootstrap Admin";
+  const bootstrapEmail = config.bootstrap.email;
+  const bootstrapPassword = config.bootstrap.password;
+  const bootstrapName = config.bootstrap.name;
 
   if (!bootstrapEmail || !bootstrapPassword) {
     return;
@@ -139,47 +130,6 @@ async function ensureBootstrapAdmin() {
   });
 
   console.warn(`Bootstrap admin user created: ${bootstrapEmail}`);
-}
-
-async function maybeUpgradeLegacyPassword(
-  user: {
-    id: string;
-    email: string;
-    fullName: string;
-    role: UserRole;
-    isActive: boolean;
-    passwordHash: string | null;
-  },
-  rawPassword: string
-) {
-  if (!ALLOW_LEGACY_PASSWORD_UPGRADE) {
-    return user;
-  }
-
-  if (user.passwordHash) {
-    return user;
-  }
-
-  const legacyPassword = LEGACY_PASSWORD_UPGRADE[user.email];
-
-  if (!legacyPassword || legacyPassword !== rawPassword) {
-    return user;
-  }
-
-  const passwordHash = await hashPassword(rawPassword);
-
-  return prisma.user.update({
-    where: { id: user.id },
-    data: { passwordHash },
-    select: {
-      id: true,
-      email: true,
-      fullName: true,
-      role: true,
-      isActive: true,
-      passwordHash: true
-    }
-  });
 }
 
 export async function loginWithPassword(email: string, password: string) {
@@ -208,13 +158,11 @@ export async function loginWithPassword(email: string, password: string) {
     throw new ApiError("FORBIDDEN", "Your account is inactive. Please contact administrator.", 403);
   }
 
-  const user = await maybeUpgradeLegacyPassword(existing, password);
-
-  if (!user.passwordHash) {
+  if (!existing.passwordHash) {
     throw new ApiError("UNAUTHORIZED", "Invalid email or password.", 401);
   }
 
-  const isValidPassword = await verifyPassword(password, user.passwordHash);
+  const isValidPassword = await verifyPassword(password, existing.passwordHash);
 
   if (!isValidPassword) {
     throw new ApiError("UNAUTHORIZED", "Invalid email or password.", 401);
@@ -228,17 +176,17 @@ export async function loginWithPassword(email: string, password: string) {
     data: {
       tokenHash,
       expiresAt,
-      userId: user.id
+      userId: existing.id
     }
   });
 
   return {
     accessToken,
     user: {
-      id: user.id,
-      email: user.email,
-      fullName: user.fullName,
-      role: user.role
+      id: existing.id,
+      email: existing.email,
+      fullName: existing.fullName,
+      role: existing.role
     }
   };
 }
@@ -378,7 +326,7 @@ export async function issuePasswordReset(email: string) {
     })
   ]);
 
-  const resetUrl = `${APP_WEB_BASE_URL}/reset-password?token=${rawToken}`;
+  const resetUrl = `${config.webBaseUrl}/reset-password?token=${rawToken}`;
   console.warn(`Password reset token issued for ${user.email}: ${resetUrl}`);
 
   // Send password reset email (fire-and-forget)
@@ -391,7 +339,7 @@ export async function issuePasswordReset(email: string) {
     html,
   }).catch((err) => console.error("Failed to send password reset email:", err));
 
-  if (process.env.NODE_ENV !== "production") {
+  if (!config.isProd) {
     return { success: true, debugResetToken: rawToken, debugResetUrl: resetUrl };
   }
 
@@ -439,7 +387,7 @@ export async function issueInviteToken(userId: string, invitedByName: string) {
     })
   ]);
 
-  const setPasswordUrl = `${APP_WEB_BASE_URL}/set-password?token=${rawToken}`;
+  const setPasswordUrl = `${config.webBaseUrl}/set-password?token=${rawToken}`;
   console.warn(`Invite token issued for ${user.email}: ${setPasswordUrl}`);
 
   // Send invite email (fire-and-forget)
@@ -452,7 +400,7 @@ export async function issueInviteToken(userId: string, invitedByName: string) {
     html,
   }).catch((err) => console.error("Failed to send invite email:", err));
 
-  if (process.env.NODE_ENV !== "production") {
+  if (!config.isProd) {
     return { success: true, debugToken: rawToken, debugUrl: setPasswordUrl };
   }
 

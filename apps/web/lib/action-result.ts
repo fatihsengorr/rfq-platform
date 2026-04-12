@@ -1,8 +1,3 @@
-export type ActionResult = {
-  status: "idle" | "success" | "error";
-  message: string;
-  fieldErrors?: Record<string, string>;
-  redirectTo?: string;
-};
-
-export const IDLE_RESULT: ActionResult = { status: "idle", message: "" };
+// Re-export from shared package so existing imports keep working.
+export type { ActionResult } from "@crm/shared";
+export { IDLE_RESULT } from "@crm/shared";

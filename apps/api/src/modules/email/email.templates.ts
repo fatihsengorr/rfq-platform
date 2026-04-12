@@ -1,6 +1,7 @@
+import { config } from "../../config.js";
+
 const APP_NAME = "RFQ Platform";
-const APP_WEB_BASE_URL = process.env.APP_WEB_BASE_URL ?? "http://localhost:3000";
-const LOGO_URL = `${APP_WEB_BASE_URL}/gorhan-logo-white.svg`;
+const LOGO_URL = `${config.webBaseUrl}/gorhan-logo-white.svg`;
 
 function layout(title: string, body: string): string {
   return `<!DOCTYPE html>

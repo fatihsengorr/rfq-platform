@@ -1,9 +1,10 @@
 import { Prisma, RfqStatus as DbRfqStatus, UserRole as DbUserRole } from "@prisma/client";
 import { ApiError } from "../../errors.js";
 import { prisma } from "../../prisma.js";
+import { config } from "../../config.js";
 import type { Approval, Attachment, CompanySummary, ContactSummary, QuoteRevision, RfqRecord, RfqStatus, UserRole } from "./rfq.types.js";
 
-const API_PUBLIC_BASE_URL = (process.env.PUBLIC_API_BASE_URL ?? "http://localhost:4000").replace(/\/+$/, "");
+const API_PUBLIC_BASE_URL = config.publicApiBaseUrl;
 
 const rfqInclude = {
   createdBy: true,
