@@ -17,6 +17,7 @@ RUN pnpm install --frozen-lockfile
 COPY apps/api/ ./apps/api/
 COPY packages/shared/ ./packages/shared/
 
+RUN pnpm --filter @crm/shared build
 RUN pnpm --filter api prisma generate
 RUN pnpm --filter api build
 
@@ -34,6 +35,8 @@ COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder /app/packages/shared/package.json ./packages/shared/package.json
 
 WORKDIR /app/apps/api
 EXPOSE 4000

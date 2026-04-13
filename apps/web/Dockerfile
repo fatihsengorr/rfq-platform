@@ -30,6 +30,7 @@ COPY --from=deps /app/packages/ ./packages/
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/ ./apps/web/
 
+RUN pnpm --filter @crm/shared build
 RUN pnpm --filter web build
 
 # ── Stage 3: Production ──
