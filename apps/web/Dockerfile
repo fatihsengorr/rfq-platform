@@ -28,6 +28,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY --from=deps /app/packages/ ./packages/
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/shared/ ./packages/shared/
 COPY apps/web/ ./apps/web/
 
 RUN pnpm --filter @crm/shared build
