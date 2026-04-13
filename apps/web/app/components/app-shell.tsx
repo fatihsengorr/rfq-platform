@@ -84,8 +84,7 @@ function SidebarNav({ items }: { items: Array<{ href: string; label: string }> }
 function SidebarBrand() {
   return (
     <div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/gorhan-logo-white.svg" alt="Gorhan" className="w-36 mb-3" />
+            <img src="/gorhan-logo-white.svg" alt="Gorhan" className="w-36 mb-3" />
       <p className="text-xs uppercase tracking-widest opacity-70">RFQ Platform</p>
     </div>
   );

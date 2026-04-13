@@ -7,8 +7,8 @@
     "dev": "tsx watch src/main.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
-    "lint": "echo 'lint not configured yet'",
-    "test": "echo 'test not configured yet'",
+    "lint": "eslint src/",
+    "test": "vitest run",
     "prisma": "prisma"
   },
   "dependencies": {

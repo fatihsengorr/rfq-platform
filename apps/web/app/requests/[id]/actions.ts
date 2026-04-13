@@ -8,10 +8,9 @@ import {
   decideQuoteApproval,
   isApiClientError,
   reviseRfqRequest,
-  getPresignedUploadUrl,
-  confirmUpload,
 } from "../../api";
 import { setFlashNotice } from "../../../lib/flash";
+import { uploadFilePresigned } from "../../../lib/upload";
 import type { ActionResult } from "../../../lib/action-result";
 
 const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024;
@@ -43,36 +42,6 @@ async function handleRfqNotFound(error: unknown): Promise<boolean> {
     redirect("/requests");
   }
   return false;
-}
-
-async function uploadFilePresigned(rfqId: string, file: File, quoteRevisionId?: string) {
-  const fileName = file.name?.trim() || "attachment.bin";
-  const mimeType = file.type || "application/octet-stream";
-
-  const { uploadUrl, storageKey } = await getPresignedUploadUrl(rfqId, {
-    fileName,
-    mimeType,
-    sizeBytes: file.size,
-    quoteRevisionId,
-  });
-
-  const uploadResponse = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: { "Content-Type": mimeType },
-    body: Buffer.from(await file.arrayBuffer()),
-  });
-
-  if (!uploadResponse.ok) {
-    throw new Error(`S3 upload failed: ${uploadResponse.status}`);
-  }
-
-  return confirmUpload(rfqId, {
-    storageKey,
-    fileName,
-    mimeType,
-    sizeBytes: file.size,
-    quoteRevisionId,
-  });
 }
 
 /* ── Revise Request ────────────────────────────────────── */

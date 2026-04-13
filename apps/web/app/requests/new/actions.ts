@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createRfq, isApiClientError, getPresignedUploadUrl, confirmUpload } from "../../api";
+import { createRfq, isApiClientError } from "../../api";
 import { getSession } from "../../../lib/session";
+import { uploadFilePresigned } from "../../../lib/upload";
 import type { ActionResult } from "../../../lib/action-result";
 
 const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024;
@@ -15,39 +16,6 @@ function parseFiles(formData: FormData, key: string) {
 
 function hasOversizedFile(files: File[]) {
   return files.some((file) => file.size > MAX_ATTACHMENT_BYTES);
-}
-
-async function uploadFilePresigned(rfqId: string, file: File, quoteRevisionId?: string) {
-  const fileName = file.name?.trim() || "attachment.bin";
-  const mimeType = file.type || "application/octet-stream";
-
-  // 1. Get presigned URL from API
-  const { uploadUrl, storageKey } = await getPresignedUploadUrl(rfqId, {
-    fileName,
-    mimeType,
-    sizeBytes: file.size,
-    quoteRevisionId,
-  });
-
-  // 2. Upload directly to S3/MinIO
-  const uploadResponse = await fetch(uploadUrl, {
-    method: "PUT",
-    headers: { "Content-Type": mimeType },
-    body: Buffer.from(await file.arrayBuffer()),
-  });
-
-  if (!uploadResponse.ok) {
-    throw new Error(`S3 upload failed: ${uploadResponse.status}`);
-  }
-
-  // 3. Confirm upload with API (creates DB record)
-  return confirmUpload(rfqId, {
-    storageKey,
-    fileName,
-    mimeType,
-    sizeBytes: file.size,
-    quoteRevisionId,
-  });
 }
 
 export async function createRfqAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {

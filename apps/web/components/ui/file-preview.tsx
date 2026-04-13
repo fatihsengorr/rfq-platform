@@ -49,7 +49,6 @@ export function FilePreviewItem({ attachment, versionLabel }: FilePreviewProps) 
         {/* Thumbnail / Icon */}
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-muted">
           {isImage(attachment.mimeType) ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={downloadUrl}
               alt={attachment.fileName}
@@ -129,8 +128,7 @@ export function FilePreviewItem({ attachment, versionLabel }: FilePreviewProps) 
             {/* Content */}
             <div className="flex items-center justify-center overflow-auto" style={{ maxHeight: "calc(90vh - 56px)" }}>
               {isImage(attachment.mimeType) ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                    <img
                   src={downloadUrl}
                   alt={attachment.fileName}
                   className="max-w-full max-h-[80vh] object-contain"

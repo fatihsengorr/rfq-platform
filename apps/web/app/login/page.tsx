@@ -38,7 +38,6 @@ export default async function LoginPage({ searchParams }: { searchParams: LoginS
       <div className="w-full max-w-5xl grid lg:grid-cols-[1.15fr_minmax(340px,420px)] gap-6 items-stretch">
         {/* ── Showcase ─────────────────────────── */}
         <Card className="p-6 bg-gradient-to-br from-white via-background to-[#fff5e8] max-lg:hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/gorhan-logo.svg" alt="Gorhan" className="w-48 mb-5" />
           <p className="text-xs font-bold uppercase tracking-widest text-primary">
             RFQ Platform
@@ -92,8 +91,7 @@ export default async function LoginPage({ searchParams }: { searchParams: LoginS
           <CardHeader>
             {/* Mobile logo - hidden on lg+ where showcase card is visible */}
             <div className="flex flex-col items-center mb-4 lg:hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/gorhan-logo.svg" alt="Gorhan" className="w-40 mb-2" />
+                  <img src="/gorhan-logo.svg" alt="Gorhan" className="w-40 mb-2" />
               <p className="text-xs font-bold uppercase tracking-widest text-primary">RFQ Platform</p>
             </div>
             <CardTitle className="text-xl">Sign In</CardTitle>

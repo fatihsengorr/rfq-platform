@@ -4,9 +4,17 @@
   "version": "0.1.0",
   "packageManager": "pnpm@9.12.1",
   "scripts": {
-    "dev": "pnpm -r --parallel dev",
-    "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
-    "test": "pnpm -r test"
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "turbo test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.2.0",
+    "globals": "^17.5.0",
+    "turbo": "^2.9.6",
+    "typescript-eslint": "^8.58.1",
+    "vitest": "^4.1.4"
   }
 }
