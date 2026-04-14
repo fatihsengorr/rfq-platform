@@ -144,21 +144,31 @@ function mapRole(role: UserRole): DbUserRole {
 }
 
 export class RfqStore {
-  async list(viewerRole: UserRole, viewerUserId: string): Promise<RfqRecord[]> {
-    const rows = await prisma.rfq.findMany({
-      where:
-        viewerRole === "ISTANBUL_PRICING"
-          ? {
-              assignedPricingUserId: viewerUserId
-            }
-          : undefined,
-      include: rfqInclude,
-      orderBy: {
-        createdAt: "desc"
-      }
-    });
+  async list(
+    viewerRole: UserRole,
+    viewerUserId: string,
+    pagination?: { page: number; limit: number }
+  ): Promise<{ data: RfqRecord[]; total: number }> {
+    const where =
+      viewerRole === "ISTANBUL_PRICING"
+        ? { assignedPricingUserId: viewerUserId }
+        : undefined;
 
-    return rows.map((item) => rfqToDto(item, viewerRole));
+    const page = pagination?.page ?? 1;
+    const limit = pagination?.limit ?? 200;
+
+    const [rows, total] = await Promise.all([
+      prisma.rfq.findMany({
+        where,
+        include: rfqInclude,
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        skip: (page - 1) * limit,
+      }),
+      prisma.rfq.count({ where }),
+    ]);
+
+    return { data: rows.map((item) => rfqToDto(item, viewerRole)), total };
   }
 
   async getById(id: string, viewerRole: UserRole, viewerUserId: string): Promise<RfqRecord | undefined> {

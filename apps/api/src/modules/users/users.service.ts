@@ -1,5 +1,6 @@
 import { Prisma, UserRole } from "@prisma/client";
 import { ApiError } from "../../errors.js";
+import { logger } from "../../logger.js";
 import { prisma } from "../../prisma.js";
 import { hashPassword, validatePasswordPolicy, issueInviteToken } from "../auth/auth.service.js";
 
@@ -87,6 +88,7 @@ function mapUser(user: UserRow): MappedUser {
 export async function listUsers(): Promise<MappedUser[]> {
   const users = await prisma.user.findMany({
     orderBy: [{ role: "asc" }, { fullName: "asc" }],
+    take: 500,
     select: {
       ...userSelect,
       passwordResetTokens: {
@@ -129,7 +131,7 @@ export async function createUser(
 
     if (!data.password) {
       issueInviteToken(created.id, invitedByName).catch((err) =>
-        console.error("Failed to issue invite token:", err)
+        logger.error({ err }, "Failed to issue invite token")
       );
     }
 

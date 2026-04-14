@@ -3,6 +3,7 @@ import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } fr
 import { promisify } from "node:util";
 import { ApiError } from "../../errors.js";
 import { config } from "../../config.js";
+import { logger } from "../../logger.js";
 import { prisma } from "../../prisma.js";
 import { sendNotification } from "../email/email.service.js";
 import { passwordResetNotification, inviteUserNotification } from "../email/email.templates.js";
@@ -113,7 +114,7 @@ async function ensureBootstrapAdmin() {
   const policyError = validatePasswordPolicy(bootstrapPassword);
 
   if (policyError) {
-    console.warn(`BOOTSTRAP_ADMIN_PASSWORD policy violation: ${policyError}`);
+    logger.warn(`BOOTSTRAP_ADMIN_PASSWORD policy violation: ${policyError}`);
     return;
   }
 
@@ -129,7 +130,7 @@ async function ensureBootstrapAdmin() {
     }
   });
 
-  console.warn(`Bootstrap admin user created: ${bootstrapEmail}`);
+  logger.warn(`Bootstrap admin user created: ${bootstrapEmail}`);
 }
 
 export async function loginWithPassword(email: string, password: string) {
@@ -327,7 +328,7 @@ export async function issuePasswordReset(email: string) {
   ]);
 
   const resetUrl = `${config.webBaseUrl}/reset-password?token=${rawToken}`;
-  console.warn(`Password reset token issued for ${user.email}: ${resetUrl}`);
+  logger.warn(`Password reset token issued for ${user.email}: ${resetUrl}`);
 
   // Send password reset email (fire-and-forget)
   const { subject, html } = passwordResetNotification(user.fullName, resetUrl, RESET_TOKEN_TTL_MINUTES);
@@ -337,7 +338,7 @@ export async function issuePasswordReset(email: string) {
     recipientEmail: user.email,
     subject,
     html,
-  }).catch((err) => console.error("Failed to send password reset email:", err));
+  }).catch((err) => logger.error({ err }, "Failed to send password reset email"));
 
   if (!config.isProd) {
     return { success: true, debugResetToken: rawToken, debugResetUrl: resetUrl };
@@ -388,7 +389,7 @@ export async function issueInviteToken(userId: string, invitedByName: string) {
   ]);
 
   const setPasswordUrl = `${config.webBaseUrl}/set-password?token=${rawToken}`;
-  console.warn(`Invite token issued for ${user.email}: ${setPasswordUrl}`);
+  logger.warn(`Invite token issued for ${user.email}: ${setPasswordUrl}`);
 
   // Send invite email (fire-and-forget)
   const { subject, html } = inviteUserNotification(user.fullName, invitedByName, setPasswordUrl, INVITE_TOKEN_TTL_HOURS);
@@ -398,7 +399,7 @@ export async function issueInviteToken(userId: string, invitedByName: string) {
     recipientEmail: user.email,
     subject,
     html,
-  }).catch((err) => console.error("Failed to send invite email:", err));
+  }).catch((err) => logger.error({ err }, "Failed to send invite email"));
 
   if (!config.isProd) {
     return { success: true, debugToken: rawToken, debugUrl: setPasswordUrl };

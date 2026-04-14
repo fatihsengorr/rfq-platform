@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 import type { SessionUser } from "../../lib/session";
 import { LogoutButton } from "./logout-button";
 import { MobileSidebar } from "./mobile-sidebar";
@@ -66,7 +67,7 @@ function menuForRole(role: SessionUser["role"]) {
 
 function SidebarNav({ items }: { items: Array<{ href: string; label: string }> }) {
   return (
-    <nav className="flex flex-col gap-1">
+    <nav aria-label="Main navigation" className="flex flex-col gap-1">
       {items.map((item) => (
         <a
           key={item.href}
@@ -84,7 +85,7 @@ function SidebarNav({ items }: { items: Array<{ href: string; label: string }> }
 function SidebarBrand() {
   return (
     <div>
-            <img src="/gorhan-logo-white.svg" alt="Gorhan" className="w-36 mb-3" />
+            <Image src="/gorhan-logo-white.svg" alt="Gorhan" width={144} height={40} className="mb-3" />
       <p className="text-xs uppercase tracking-widest opacity-70">RFQ Platform</p>
     </div>
   );

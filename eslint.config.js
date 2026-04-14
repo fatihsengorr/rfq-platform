@@ -11,6 +11,10 @@ export default tseslint.config(
         ...globals.node,
         ...globals.browser,
       },
+      parserOptions: {
+        projectService: false,
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     rules: {
       // Allow unused vars prefixed with _

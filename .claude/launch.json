@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "web",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "web", "dev"],
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/fatihsengor/Codex/CRM && pnpm --filter web dev"],
       "port": 3000
     }
   ]

@@ -127,6 +127,11 @@ function toSafeDownloadName(fileName: string): string {
 }
 
 export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
+  const paginationSchema = z.object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+  });
+
   server.get("/", async (request, reply) => {
     const session = await requireAuth(request, reply);
 
@@ -135,7 +140,11 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
     }
 
     const role = mapDbRoleToRfqRole(session.user.role);
-    return await rfqStore.list(role, session.user.id);
+    const query = paginationSchema.safeParse(request.query);
+    const pagination = query.success ? query.data : { page: 1, limit: 200 };
+    const result = await rfqStore.list(role, session.user.id, pagination);
+    reply.header("X-Total-Count", result.total);
+    return result.data;
   });
 
   server.get("/pricing-users", async (request, reply) => {

@@ -7,12 +7,20 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
-    "test": "turbo test"
+    "test": "turbo test",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "apps/api/**/*.ts": "eslint --no-error-on-unmatched-pattern --fix",
+    "apps/web/**/*.{ts,tsx}": "eslint --no-error-on-unmatched-pattern --fix",
+    "packages/shared/**/*.ts": "eslint --no-error-on-unmatched-pattern --fix"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.2.0",
     "globals": "^17.5.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "turbo": "^2.9.6",
     "typescript-eslint": "^8.58.1",
     "vitest": "^4.1.4"

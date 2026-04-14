@@ -19,6 +19,7 @@ export async function listComments(rfqId: string): Promise<CommentView[]> {
   const comments = await prisma.comment.findMany({
     where: { rfqId },
     orderBy: { createdAt: "asc" },
+    take: 500,
     include: {
       author: { select: { id: true, fullName: true, role: true } },
     },

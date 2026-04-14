@@ -45,7 +45,10 @@ function buildClearedSessionCookie() {
 
 
 export const registerAuthRoutes: FastifyPluginAsync = async (server) => {
-  server.post("/login", async (request, reply) => {
+  // Stricter rate limit for auth endpoints: 10 req/min per IP
+  const authRateLimit = { rateLimit: { max: 10, timeWindow: "1 minute" } } as const;
+
+  server.post("/login", { config: authRateLimit }, async (request, reply) => {
     const parsed = loginSchema.safeParse(request.body);
 
     if (!parsed.success) {
@@ -76,7 +79,7 @@ export const registerAuthRoutes: FastifyPluginAsync = async (server) => {
     return reply.status(200).send({ success: true });
   });
 
-  server.post("/forgot-password", async (request, reply) => {
+  server.post("/forgot-password", { config: authRateLimit }, async (request, reply) => {
     const parsed = forgotPasswordSchema.safeParse(request.body);
 
     if (!parsed.success) {
@@ -95,7 +98,7 @@ export const registerAuthRoutes: FastifyPluginAsync = async (server) => {
     }
   });
 
-  server.post("/reset-password", async (request, reply) => {
+  server.post("/reset-password", { config: authRateLimit }, async (request, reply) => {
     const parsed = resetPasswordSchema.safeParse(request.body);
 
     if (!parsed.success) {

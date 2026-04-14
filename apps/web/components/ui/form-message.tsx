@@ -15,13 +15,14 @@ export function FormMessage({ state, fieldName }: FormMessageProps) {
   if (fieldName) {
     const fieldError = state.fieldErrors?.[fieldName];
     if (!fieldError) return null;
-    return <p className="text-xs text-danger mt-1">{fieldError}</p>;
+    return <p role="alert" className="text-xs text-danger mt-1">{fieldError}</p>;
   }
 
   if (state.status === "idle" || !state.message) return null;
 
   return (
     <div
+      role="alert"
       className={`mb-4 rounded-lg border px-3 py-2 text-sm font-semibold ${
         state.status === "success"
           ? "border-success/30 bg-success/5 text-success"

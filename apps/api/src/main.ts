@@ -6,7 +6,7 @@ const server = buildServer();
 server
   .listen({ port: config.port, host: config.host })
   .then(() => {
-    console.log(`API running on http://${config.host}:${config.port}`);
+    server.log.info(`API running on http://${config.host}:${config.port}`);
   })
   .catch((error) => {
     server.log.error(error);

@@ -86,6 +86,11 @@ model Rfq {
   quoteRevisions QuoteRevision[]
   notifications  Notification[]
   comments       Comment[]
+
+  @@index([createdById])
+  @@index([assignedPricingUserId])
+  @@index([status])
+  @@index([companyId])
 }
 
 model QuoteRevision {
@@ -107,6 +112,7 @@ model QuoteRevision {
   approvals      QuoteApproval[]
 
   @@unique([rfqId, versionNumber])
+  @@index([rfqId])
 }
 
 model QuoteApproval {
@@ -140,6 +146,9 @@ model Attachment {
 
   uploadedById      String
   uploadedBy        User           @relation("attachment_uploaded_by", fields: [uploadedById], references: [id])
+
+  @@index([rfqId])
+  @@index([quoteRevisionId])
 }
 
 model CustomerCompany {
@@ -170,6 +179,8 @@ model Contact {
   companyId        String
   company          CustomerCompany  @relation(fields: [companyId], references: [id])
   rfqs             Rfq[]
+
+  @@index([companyId])
 }
 
 model Lead {
@@ -187,6 +198,9 @@ model Lead {
 
   ownerId           String
   owner             User             @relation("lead_owner", fields: [ownerId], references: [id])
+
+  @@index([companyId])
+  @@index([ownerId])
 }
 
 model Comment {
