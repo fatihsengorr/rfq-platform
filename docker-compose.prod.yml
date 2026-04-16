@@ -43,6 +43,7 @@ services:
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: 4000
+      CRON_SECRET: ${CRON_SECRET}
     command: >
       sh -c "./node_modules/.bin/prisma migrate deploy --schema ./prisma/schema.prisma && node dist/main.js"
 

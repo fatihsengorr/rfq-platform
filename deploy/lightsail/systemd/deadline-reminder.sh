@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deadline Reminder — triggered by systemd timer
-# Calls the API's cron endpoint inside the Docker network
+# Calls the API's cron endpoint from the host via localhost
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -19,12 +19,11 @@ if [ -z "$CRON_SECRET" ]; then
   exit 1
 fi
 
-# Call the API endpoint via Docker network (container name: rfq-api)
-RESPONSE=$(docker exec rfq-api wget -q -O - \
-  --header="X-Cron-Secret: $CRON_SECRET" \
-  --post-data="" \
-  "http://localhost:4000/api/cron/deadline-reminders" 2>&1) || {
-  echo "ERROR: API call failed: $RESPONSE" >&2
+# Call the API endpoint via host network (port 4000 is exposed)
+RESPONSE=$(curl -s -f -X POST \
+  -H "X-Cron-Secret: $CRON_SECRET" \
+  "http://localhost:4000/api/cron/deadline-reminders") || {
+  echo "ERROR: API call failed (curl exit code: $?)" >&2
   exit 1
 }
 
