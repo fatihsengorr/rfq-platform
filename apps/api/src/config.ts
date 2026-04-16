@@ -63,6 +63,9 @@ export const config = {
     bucket: optional("STORAGE_BUCKET", "rfq-attachments"),
   },
 
+  // Cron / scheduled tasks
+  cronSecret: optional("CRON_SECRET", ""),
+
   // Bootstrap admin (first-run only)
   bootstrap: {
     email: process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase(),

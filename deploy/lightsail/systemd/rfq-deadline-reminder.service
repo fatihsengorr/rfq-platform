@@ -1,0 +1,15 @@
+[Unit]
+Description=RFQ Platform — Deadline Reminder
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/ubuntu/rfq-platform
+ExecStart=/home/ubuntu/rfq-platform/deploy/lightsail/systemd/deadline-reminder.sh
+User=ubuntu
+StandardOutput=journal
+StandardError=journal
+
+# Timeout: if it takes more than 2 minutes, something is wrong
+TimeoutStartSec=120

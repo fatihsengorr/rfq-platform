@@ -8,6 +8,7 @@ import { registerRfqRoutes } from "./modules/rfq/rfq.routes.js";
 import { registerUserRoutes } from "./modules/users/users.routes.js";
 import { registerCommentRoutes } from "./modules/rfq/comment.routes.js";
 import { registerCompanyRoutes } from "./modules/company/company.routes.js";
+import { registerCronRoutes } from "./modules/cron/cron.routes.js";
 import { prisma } from "./prisma.js";
 
 export function buildServer() {
@@ -50,6 +51,7 @@ export function buildServer() {
   server.register(registerCommentRoutes, { prefix: "/api/rfqs" });
   server.register(registerUserRoutes, { prefix: "/api/users" });
   server.register(registerCompanyRoutes, { prefix: "/api/companies" });
+  server.register(registerCronRoutes, { prefix: "/api/cron" });
 
   return server;
 }
