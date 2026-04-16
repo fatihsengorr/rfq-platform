@@ -49,7 +49,7 @@ jobs:
           script: |
             cd ~/rfq-platform
             git pull origin main
-            docker compose -f docker-compose.prod.yml build
-            docker compose -f docker-compose.prod.yml up -d
-            docker compose -f docker-compose.prod.yml exec api sh -c "pnpm prisma migrate deploy" || true
+            docker compose --env-file deploy/lightsail/.env.prod -f docker-compose.yml -f docker-compose.prod.yml build
+            docker compose --env-file deploy/lightsail/.env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d
+            docker compose --env-file deploy/lightsail/.env.prod -f docker-compose.yml -f docker-compose.prod.yml exec api sh -c "pnpm prisma migrate deploy" || true
             docker image prune -f
