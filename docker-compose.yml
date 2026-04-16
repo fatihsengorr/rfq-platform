@@ -64,6 +64,7 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      CRON_SECRET: ${CRON_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy
