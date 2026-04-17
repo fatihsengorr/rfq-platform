@@ -6,14 +6,14 @@ import type { RfqRecord } from "../../../data";
 import { statusLabel, latestQuoteLabel } from "../../../data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, Paperclip, Receipt, Clock } from "lucide-react";
+import { FileText, Paperclip } from "lucide-react";
 import { FilePreviewItem } from "@/components/ui/file-preview";
 import { PillTabList, PillTab } from "@/components/ui/pill-tabs";
-import { formatDateTime, formatCurrency } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 
-type DetailTab = "overview" | "files" | "revisions" | "timeline";
+// Faz 3 — Feature 2: Revisions and Timeline moved to the top-level
+// "Revisions" tab. DetailsCard now only shows Overview + Files.
+type DetailTab = "overview" | "files";
 
 type DetailsCardProps = {
   record: RfqRecord;
@@ -22,15 +22,13 @@ type DetailsCardProps = {
 const tabConfig: Array<{ key: DetailTab; icon: React.ReactNode; label: string }> = [
   { key: "overview", icon: <FileText className="size-3" />, label: "Overview" },
   { key: "files", icon: <Paperclip className="size-3" />, label: "Files" },
-  { key: "revisions", icon: <Receipt className="size-3" />, label: "Revisions" },
-  { key: "timeline", icon: <Clock className="size-3" />, label: "Timeline" },
 ];
 
 export function DetailsCard({ record }: DetailsCardProps) {
   const [activeTab, setActiveTab] = useState<DetailTab>("overview");
 
   return (
-    <Card className="mt-4">
+    <Card>
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle>Details</CardTitle>
         <Button variant="ghost" size="sm" asChild>
@@ -101,52 +99,6 @@ export function DetailsCard({ record }: DetailsCardProps) {
           </div>
         )}
 
-        {activeTab === "revisions" && (
-          <>
-            {record.quoteRevisions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No quote revisions yet.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Version</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created By</TableHead>
-                    <TableHead>Created At</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {record.quoteRevisions.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell className="font-semibold">V{r.versionNumber}</TableCell>
-                      <TableCell>{r.currency} {formatCurrency(r.totalAmount, "").trim()}</TableCell>
-                      <TableCell><StatusBadge status={r.status} /></TableCell>
-                      <TableCell className="text-sm">{r.createdBy}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{formatDateTime(r.createdAt)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </>
-        )}
-
-        {activeTab === "timeline" && (
-          <ol className="grid gap-2 pl-4 list-decimal">
-            <li className="text-sm"><span className="font-semibold">RFQ created</span> — {formatDateTime(record.createdAt)}</li>
-            {record.quoteRevisions.map((r) => (
-              <li key={r.id} className="text-sm">
-                <span className="font-semibold">Quote V{r.versionNumber}</span> ({r.status}) {r.currency} {r.totalAmount.toLocaleString("en-GB")} — {formatDateTime(r.createdAt)}
-              </li>
-            ))}
-            {record.approvals.map((a) => (
-              <li key={a.id} className="text-sm">
-                <span className="font-semibold">Manager decision</span> ({a.decision}) — {formatDateTime(a.decidedAt)}
-              </li>
-            ))}
-          </ol>
-        )}
       </CardContent>
     </Card>
   );

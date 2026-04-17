@@ -87,7 +87,7 @@ export function ActionCenter({ record, pricingUsers, availableActions }: ActionC
 
   if (availableActions.length === 0) {
     return (
-      <Card className="mt-4">
+      <Card>
         <CardHeader className="flex-row items-center justify-between">
           <CardTitle>Action Center</CardTitle>
           <Badge variant="outline">Role-based actions</Badge>
@@ -100,7 +100,7 @@ export function ActionCenter({ record, pricingUsers, availableActions }: ActionC
   }
 
   return (
-    <Card className="mt-4">
+    <Card>
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle>Action Center</CardTitle>
         <Badge variant="outline">Role-based actions</Badge>
