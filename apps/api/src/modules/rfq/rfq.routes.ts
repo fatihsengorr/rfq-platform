@@ -40,17 +40,25 @@ const assignSchema = z.object({
   assignedPricingUserId: z.string().uuid()
 });
 
-const statusSchema = z.object({
-  status: z.enum([
-    "NEW",
-    "IN_REVIEW",
-    "PRICING_IN_PROGRESS",
-    "PENDING_MANAGER_APPROVAL",
-    "QUOTED",
-    "REVISION_REQUESTED",
-    "CLOSED"
-  ])
-});
+const statusSchema = z
+  .object({
+    status: z.enum([
+      "NEW",
+      "IN_REVIEW",
+      "PRICING_IN_PROGRESS",
+      "PENDING_MANAGER_APPROVAL",
+      "QUOTED",
+      "REVISION_REQUESTED",
+      "WON",
+      "LOST",
+      "CLOSED"
+    ]),
+    lostReason: z.string().trim().min(3).max(500).optional()
+  })
+  .refine((data) => data.status !== "LOST" || (data.lostReason && data.lostReason.length >= 3), {
+    message: "lostReason is required when status is LOST.",
+    path: ["lostReason"]
+  });
 
 const createAttachmentSchema = z.object({
   fileName: z.string().min(1).max(255),
@@ -471,13 +479,6 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
 
     const role = mapDbRoleToRfqRole(session.user.role);
 
-    if (!(role === "ISTANBUL_MANAGER" || role === "ADMIN")) {
-      return reply.status(403).send({
-        code: "FORBIDDEN",
-        message: "Only Istanbul manager can directly update RFQ status."
-      });
-    }
-
     const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
 
     if (!params.success) {
@@ -485,6 +486,22 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
     }
 
     const parsed = statusSchema.safeParse(request.body);
+
+    // WON/LOST are customer-outcome markers — London Sales knows these first.
+    // Other status transitions stay manager-only as before.
+    const isOutcomeTransition = parsed.success && (parsed.data.status === "WON" || parsed.data.status === "LOST");
+    const canChangeStatus = isOutcomeTransition
+      ? role === "LONDON_SALES" || role === "ISTANBUL_MANAGER" || role === "ADMIN"
+      : role === "ISTANBUL_MANAGER" || role === "ADMIN";
+
+    if (!canChangeStatus) {
+      return reply.status(403).send({
+        code: "FORBIDDEN",
+        message: isOutcomeTransition
+          ? "Only London sales, Istanbul manager or admin can mark an RFQ as WON or LOST."
+          : "Only Istanbul manager can directly update RFQ status."
+      });
+    }
 
     if (!parsed.success) {
       return reply.status(400).send({
@@ -495,7 +512,11 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
     }
 
     try {
-      const updated = await rfqStore.setStatus(params.data.id, parsed.data.status);
+      const updated = await rfqStore.setStatus(
+        params.data.id,
+        parsed.data.status,
+        parsed.data.lostReason
+      );
       return reply.status(200).send(updated);
     } catch (error) {
       return sendError(reply, error);

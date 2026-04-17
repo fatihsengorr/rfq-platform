@@ -12,7 +12,7 @@ import { DetailsCard } from "./components/details-card";
 import { CommentSection } from "./components/comment-section";
 
 type Params = { id: string };
-type ActionTab = "revise" | "upload" | "quote" | "assign" | "approval";
+type ActionTab = "revise" | "upload" | "quote" | "assign" | "approval" | "outcome";
 
 /* Cross-page flash notices (e.g. after creating a new RFQ and redirecting here).
    In-page form feedback is now handled inline via useActionState. */
@@ -32,6 +32,8 @@ export default async function RequestDetailPage({ params }: { params: Promise<Pa
   const canReviseRequest = role === "LONDON_SALES" || role === "ADMIN";
   const canCreateQuote = role === "ISTANBUL_PRICING" || role === "ADMIN";
   const canManageAssignmentAndApproval = role === "ISTANBUL_MANAGER" || role === "ADMIN";
+  // WON/LOST is a customer-outcome call. London Sales knows first, managers finalize.
+  const canMarkOutcome = role === "LONDON_SALES" || role === "ISTANBUL_MANAGER" || role === "ADMIN";
 
   let record = null;
   try {
@@ -79,6 +81,14 @@ export default async function RequestDetailPage({ params }: { params: Promise<Pa
   if (canManageAssignmentAndApproval) {
     availableActions.push({ key: "assign", label: "Assign Pricing" });
     availableActions.push({ key: "approval", label: "Approval" });
+  }
+
+  // "Outcome" tab shown when there's a quote on the table (i.e. something we can win/lose),
+  // or when the RFQ is already in a resolved state (so users can see / re-open).
+  const hasQuote = record.quoteRevisions.length > 0;
+  const isResolved = record.status === "WON" || record.status === "LOST" || record.status === "CLOSED";
+  if (canMarkOutcome && (hasQuote || isResolved)) {
+    availableActions.push({ key: "outcome", label: "Outcome" });
   }
 
   return (

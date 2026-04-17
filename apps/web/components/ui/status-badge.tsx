@@ -7,6 +7,8 @@ const rfqStatusMap: Record<string, { label: string; variant: BadgeProps["variant
   PENDING_MANAGER_APPROVAL: { label: "Pending Approval", variant: "pending" },
   QUOTED: { label: "Quoted", variant: "approved" },
   REVISION_REQUESTED: { label: "Revision Requested", variant: "revision" },
+  WON: { label: "Won", variant: "won" },
+  LOST: { label: "Lost", variant: "lost" },
   CLOSED: { label: "Closed", variant: "closed" },
   // Quote revision statuses
   DRAFT: { label: "Draft", variant: "progress" },

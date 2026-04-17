@@ -124,6 +124,9 @@ function rfqToDto(item: RfqWithRelations, viewerRole: UserRole): RfqRecord {
     assignedPricingUser: item.assignedPricingUser?.fullName ?? null,
     assignedBy: item.assignedBy?.fullName ?? null,
     assignedAt: item.assignedAt ? item.assignedAt.toISOString() : null,
+    wonAt: item.wonAt ? item.wonAt.toISOString() : null,
+    lostAt: item.lostAt ? item.lostAt.toISOString() : null,
+    lostReason: item.lostReason ?? null,
     company: item.company
       ? { id: item.company.id, name: item.company.name, sector: item.company.sector, country: item.company.country, city: item.company.city }
       : null,
@@ -422,13 +425,38 @@ export class RfqStore {
     return approvalToDto(approval);
   }
 
-  async setStatus(rfqId: string, status: RfqStatus): Promise<RfqRecord> {
+  async setStatus(rfqId: string, status: RfqStatus, lostReason?: string): Promise<RfqRecord> {
+    if (status === "LOST" && (!lostReason || lostReason.trim().length < 3)) {
+      throw new ApiError("INVALID_REQUEST", "lostReason is required when status is LOST.", 400);
+    }
+
+    const now = new Date();
+    const data: {
+      status: RfqStatus;
+      wonAt?: Date | null;
+      lostAt?: Date | null;
+      lostReason?: string | null;
+    } = { status };
+
+    if (status === "WON") {
+      data.wonAt = now;
+      data.lostAt = null;
+      data.lostReason = null;
+    } else if (status === "LOST") {
+      data.lostAt = now;
+      data.wonAt = null;
+      data.lostReason = lostReason!.trim();
+    } else {
+      // Any other status (including reverting to open) clears outcome fields.
+      data.wonAt = null;
+      data.lostAt = null;
+      data.lostReason = null;
+    }
+
     try {
       await prisma.rfq.update({
         where: { id: rfqId },
-        data: {
-          status
-        }
+        data
       });
     } catch {
       throw new ApiError("RFQ_NOT_FOUND", "RFQ record was not found.", 404);

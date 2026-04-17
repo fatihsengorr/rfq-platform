@@ -294,6 +294,25 @@ export async function decideQuoteApproval(
   return postAuthenticated<{ id: string }>(`/api/rfqs/${rfqId}/approval`, input);
 }
 
+export async function setRfqStatus(
+  rfqId: string,
+  input: {
+    status:
+      | "NEW"
+      | "IN_REVIEW"
+      | "PRICING_IN_PROGRESS"
+      | "PENDING_MANAGER_APPROVAL"
+      | "QUOTED"
+      | "REVISION_REQUESTED"
+      | "WON"
+      | "LOST"
+      | "CLOSED";
+    lostReason?: string;
+  }
+): Promise<RfqRecord> {
+  return patchAuthenticated<RfqRecord>(`/api/rfqs/${rfqId}/status`, input);
+}
+
 export async function uploadRfqAttachment(
   rfqId: string,
   input: {

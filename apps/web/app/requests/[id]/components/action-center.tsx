@@ -9,6 +9,9 @@ import {
   uploadRequestAttachmentsAction,
   createQuoteRevisionAction,
   decideApprovalAction,
+  markRfqWonAction,
+  markRfqLostAction,
+  reopenRfqAction,
 } from "../actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,10 +21,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { FormMessage } from "@/components/ui/form-message";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
-import { Paperclip, Receipt, Loader2 } from "lucide-react";
+import { Paperclip, Receipt, Loader2, Trophy, XCircle, RotateCcw } from "lucide-react";
 import { PillTabList, PillTab } from "@/components/ui/pill-tabs";
 
-type ActionTab = "revise" | "upload" | "quote" | "assign" | "approval";
+type ActionTab = "revise" | "upload" | "quote" | "assign" | "approval" | "outcome";
 
 type ActionCenterProps = {
   record: RfqRecord;
@@ -68,6 +71,11 @@ export function ActionCenter({ record, pricingUsers, availableActions }: ActionC
   const [uploadState, uploadAction, uploadPending] = useActionState(uploadRequestAttachmentsAction, IDLE_RESULT);
   const [quoteState, quoteAction, quotePending] = useActionState(createQuoteRevisionAction, IDLE_RESULT);
   const [approvalState, approvalAction, approvalPending] = useActionState(decideApprovalAction, IDLE_RESULT);
+  const [wonState, wonAction, wonPending] = useActionState(markRfqWonAction, IDLE_RESULT);
+  const [lostState, lostAction, lostPending] = useActionState(markRfqLostAction, IDLE_RESULT);
+  const [reopenState, reopenAction, reopenPending] = useActionState(reopenRfqAction, IDLE_RESULT);
+
+  const isResolved = record.status === "WON" || record.status === "LOST" || record.status === "CLOSED";
 
   const pendingRevisions = record.quoteRevisions.filter((r: QuoteRevision) => r.status === "SUBMITTED");
   const isoDeadlineLocal = new Date(record.deadline).toISOString().slice(0, 16);
@@ -195,6 +203,88 @@ export function ActionCenter({ record, pricingUsers, availableActions }: ActionC
               </form>
             )}
           </>
+        )}
+
+        {activeAction === "outcome" && (
+          <div className="space-y-4">
+            {/* Current outcome banner (only if already resolved) */}
+            {isResolved && (
+              <div className={`rounded-lg border p-3 text-sm ${record.status === "WON" ? "bg-[#d9f4e3] border-[#6fbd89] text-[#165c2a]" : "bg-[#e0e0e0] border-[#b8b8b8] text-[#4a4a4a]"}`}>
+                <p className="font-semibold">
+                  {record.status === "WON" && `✓ Marked as Won${record.wonAt ? ` on ${new Date(record.wonAt).toLocaleDateString("en-GB")}` : ""}`}
+                  {record.status === "LOST" && `✗ Marked as Lost${record.lostAt ? ` on ${new Date(record.lostAt).toLocaleDateString("en-GB")}` : ""}`}
+                  {record.status === "CLOSED" && "Closed (legacy status)"}
+                </p>
+                {record.status === "LOST" && record.lostReason && (
+                  <p className="text-xs mt-1 opacity-80">Reason: {record.lostReason}</p>
+                )}
+                <form action={reopenAction} className="mt-3">
+                  <input type="hidden" name="rfqId" value={record.id} />
+                  <input type="hidden" name="status" value="QUOTED" />
+                  <Button type="submit" variant="outline" size="sm" disabled={reopenPending}>
+                    {reopenPending ? <><Loader2 className="size-3 animate-spin" />Re-opening...</> : <><RotateCcw className="size-3" />Re-open RFQ</>}
+                  </Button>
+                </form>
+                <FormMessage state={reopenState} />
+              </div>
+            )}
+
+            {/* Mark as Won — single-click confirm */}
+            {!isResolved && (
+              <div className="rounded-lg border border-border bg-card p-4">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                      <Trophy className="size-4 text-[#2d6a1e]" />
+                      Mark as Won
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">Customer accepted the quote. Records the win date.</p>
+                  </div>
+                  <form action={wonAction}>
+                    <input type="hidden" name="rfqId" value={record.id} />
+                    <Button type="submit" disabled={wonPending} className="bg-[#2d6a1e] hover:bg-[#215416] text-white">
+                      {wonPending ? <><Loader2 className="size-4 animate-spin" />Saving...</> : <>Mark Won</>}
+                    </Button>
+                  </form>
+                </div>
+                <FormMessage state={wonState} />
+              </div>
+            )}
+
+            {/* Mark as Lost — requires reason */}
+            {!isResolved && (
+              <div className="rounded-lg border border-border bg-card p-4">
+                <h3 className="text-sm font-semibold flex items-center gap-2">
+                  <XCircle className="size-4 text-[#882f2f]" />
+                  Mark as Lost
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1 mb-3">
+                  Customer rejected or went with competitor. A short reason is required so we can learn from it.
+                </p>
+                <form action={lostAction} className="grid gap-3">
+                  <input type="hidden" name="rfqId" value={record.id} />
+                  <div className="grid gap-2">
+                    <Label htmlFor="lostReason">Reason for loss</Label>
+                    <Textarea
+                      id="lostReason"
+                      name="lostReason"
+                      rows={3}
+                      minLength={3}
+                      maxLength={500}
+                      placeholder="e.g. Price too high; customer went with competitor; project cancelled"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Button type="submit" variant="destructive" disabled={lostPending}>
+                      {lostPending ? <><Loader2 className="size-4 animate-spin" />Saving...</> : <>Mark Lost</>}
+                    </Button>
+                  </div>
+                </form>
+                <FormMessage state={lostState} />
+              </div>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

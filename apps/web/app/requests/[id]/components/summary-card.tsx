@@ -24,7 +24,9 @@ export function SummaryCard({ record }: SummaryCardProps) {
           <div className="rounded-lg border border-border p-3">
             <p className="text-xs font-semibold text-muted-foreground">Deadline</p>
             <p className="mt-1 font-semibold text-sm">{formatDateTime(record.deadline)}</p>
-            {record.status !== "CLOSED" && <DeadlineBadge deadline={record.deadline} className="mt-1" />}
+            {record.status !== "CLOSED" && record.status !== "WON" && record.status !== "LOST" && (
+              <DeadlineBadge deadline={record.deadline} className="mt-1" />
+            )}
           </div>
           <div className="rounded-lg border border-border p-3">
             <p className="text-xs font-semibold text-muted-foreground">Company</p>

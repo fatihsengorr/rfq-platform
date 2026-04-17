@@ -20,6 +20,8 @@ const badgeVariants = cva(
         rejected: "bg-[#fdeaea] text-[#882f2f] border-[#ebb2b2]",
         revision: "bg-[#faeadf] text-[#854c1d] border-[#e7be9b]",
         closed: "bg-[#f0ece8] text-[#5a5a5a] border-[#d0c8c0]",
+        won: "bg-[#d9f4e3] text-[#165c2a] border-[#6fbd89]",
+        lost: "bg-[#e0e0e0] text-[#4a4a4a] border-[#b8b8b8]",
         active: "bg-[#e7f7ed] text-[#2d6a1e] border-[#98d4af]",
         inactive: "bg-[#fdeaea] text-[#882f2f] border-[#ebb2b2]",
       },

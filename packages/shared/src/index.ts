@@ -14,9 +14,18 @@ export const RFQ_STATUSES = [
   "PENDING_MANAGER_APPROVAL",
   "QUOTED",
   "REVISION_REQUESTED",
+  "WON",
+  "LOST",
   "CLOSED",
 ] as const;
 export type RfqStatus = (typeof RFQ_STATUSES)[number];
+
+// Resolved (terminal) outcome statuses — an RFQ here is no longer active.
+export const RESOLVED_RFQ_STATUSES = ["WON", "LOST", "CLOSED"] as const satisfies readonly RfqStatus[];
+
+export function isResolvedStatus(status: RfqStatus): boolean {
+  return (RESOLVED_RFQ_STATUSES as readonly RfqStatus[]).includes(status);
+}
 
 // ── Quote Revision Status ──────────────────────────────────────────
 export type QuoteRevisionStatus = "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED";
@@ -80,6 +89,10 @@ export type RfqRecord = {
   assignedPricingUser: string | null;
   assignedBy: string | null;
   assignedAt: string | null;
+  // Faz 3: Deal outcome tracking
+  wonAt: string | null;
+  lostAt: string | null;
+  lostReason: string | null;
   company: CompanySummary | null;
   contact: ContactSummary | null;
   attachments: Attachment[];

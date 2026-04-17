@@ -8,6 +8,7 @@ import {
   decideQuoteApproval,
   isApiClientError,
   reviseRfqRequest,
+  setRfqStatus,
 } from "../../api";
 import { setFlashNotice } from "../../../lib/flash";
 import { uploadFilePresigned } from "../../../lib/upload";
@@ -229,5 +230,84 @@ export async function decideApprovalAction(_prev: ActionResult, formData: FormDa
     }
 
     return { status: "error", message: "Manager decision failed." };
+  }
+}
+
+/* ── Mark Outcome (WON / LOST) ─────────────────────────── */
+
+export async function markRfqWonAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const rfqId = String(formData.get("rfqId") ?? "").trim();
+
+  if (!rfqId) return { status: "error", message: "RFQ id is required." };
+
+  try {
+    await setRfqStatus(rfqId, { status: "WON" });
+    revalidateRfq(rfqId);
+    return { status: "success", message: "RFQ marked as Won." };
+  } catch (error) {
+    handleAuthRedirect(error);
+    await handleRfqNotFound(error);
+
+    if (isApiClientError(error)) {
+      if (error.code === "FORBIDDEN") return { status: "error", message: "You don't have permission to mark this RFQ as Won." };
+      if (error.code === "NETWORK_ERROR") return { status: "error", message: "API is unreachable. Please check backend status." };
+    }
+
+    return { status: "error", message: "Marking RFQ as Won failed." };
+  }
+}
+
+export async function markRfqLostAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const rfqId = String(formData.get("rfqId") ?? "").trim();
+  const lostReason = String(formData.get("lostReason") ?? "").trim();
+
+  if (!rfqId) return { status: "error", message: "RFQ id is required." };
+  if (lostReason.length < 3) {
+    return {
+      status: "error",
+      message: "A reason is required when marking as Lost (min 3 characters).",
+      fieldErrors: { lostReason: "Reason required" },
+    };
+  }
+
+  try {
+    await setRfqStatus(rfqId, { status: "LOST", lostReason });
+    revalidateRfq(rfqId);
+    return { status: "success", message: "RFQ marked as Lost." };
+  } catch (error) {
+    handleAuthRedirect(error);
+    await handleRfqNotFound(error);
+
+    if (isApiClientError(error)) {
+      if (error.code === "FORBIDDEN") return { status: "error", message: "You don't have permission to mark this RFQ as Lost." };
+      if (error.code === "INVALID_REQUEST") return { status: "error", message: "Lost reason is invalid or missing." };
+      if (error.code === "NETWORK_ERROR") return { status: "error", message: "API is unreachable. Please check backend status." };
+    }
+
+    return { status: "error", message: "Marking RFQ as Lost failed." };
+  }
+}
+
+export async function reopenRfqAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const rfqId = String(formData.get("rfqId") ?? "").trim();
+  const targetStatus = String(formData.get("status") ?? "QUOTED").trim();
+
+  if (!rfqId) return { status: "error", message: "RFQ id is required." };
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await setRfqStatus(rfqId, { status: targetStatus as any });
+    revalidateRfq(rfqId);
+    return { status: "success", message: "RFQ re-opened." };
+  } catch (error) {
+    handleAuthRedirect(error);
+    await handleRfqNotFound(error);
+
+    if (isApiClientError(error)) {
+      if (error.code === "FORBIDDEN") return { status: "error", message: "You don't have permission to re-open this RFQ." };
+      if (error.code === "NETWORK_ERROR") return { status: "error", message: "API is unreachable. Please check backend status." };
+    }
+
+    return { status: "error", message: "Re-opening RFQ failed." };
   }
 }

@@ -21,6 +21,8 @@ export function statusLabel(status: RfqStatus) {
     PENDING_MANAGER_APPROVAL: "Pending Manager Approval",
     QUOTED: "Quoted",
     REVISION_REQUESTED: "Revision Requested",
+    WON: "Won",
+    LOST: "Lost",
     CLOSED: "Closed"
   };
 
