@@ -69,37 +69,63 @@ export function DetailsCard({ record }: DetailsCardProps) {
         )}
 
         {activeTab === "files" && (
-          <div className="grid sm:grid-cols-2 gap-6">
-            <div>
-              <h3 className="font-bold text-sm mb-3">Request Files</h3>
-              {record.attachments.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No request attachments yet.</p>
-              ) : (
-                <div className="grid gap-2">
-                  {record.attachments.map((a) => (
-                    <FilePreviewItem key={a.id} attachment={a} />
-                  ))}
-                </div>
+          <div className="grid sm:grid-cols-2 gap-6 items-start">
+            <FileColumn
+              title="Request Files"
+              emptyMessage="No request attachments yet."
+              isEmpty={record.attachments.length === 0}
+            >
+              {record.attachments.map((a) => (
+                <FilePreviewItem key={a.id} attachment={a} />
+              ))}
+            </FileColumn>
+            <FileColumn
+              title="Quote Files"
+              emptyMessage="No quote attachments visible."
+              isEmpty={record.quoteRevisions.every((r) => r.attachments.length === 0)}
+            >
+              {record.quoteRevisions.flatMap((r) =>
+                r.attachments.map((a) => (
+                  <FilePreviewItem key={a.id} attachment={a} versionLabel={`V${r.versionNumber}`} />
+                ))
               )}
-            </div>
-            <div>
-              <h3 className="font-bold text-sm mb-3">Quote Files</h3>
-              {record.quoteRevisions.every((r) => r.attachments.length === 0) ? (
-                <p className="text-sm text-muted-foreground">No quote attachments visible.</p>
-              ) : (
-                <div className="grid gap-2">
-                  {record.quoteRevisions.flatMap((r) =>
-                    r.attachments.map((a) => (
-                      <FilePreviewItem key={a.id} attachment={a} versionLabel={`V${r.versionNumber}`} />
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
+            </FileColumn>
           </div>
         )}
 
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Each files column (Request / Quote) renders inside its own bordered block
+ * so an empty state has the same visual weight as a populated one. Without
+ * this, a single-line "No attachments" string on one side was visually
+ * colliding with the file tiles on the other side (grid row-stretch made
+ * the text land in the middle of a neighbouring tile).
+ */
+function FileColumn({
+  title,
+  emptyMessage,
+  isEmpty,
+  children,
+}: {
+  title: string;
+  emptyMessage: string;
+  isEmpty: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-w-0">
+      <h3 className="font-bold text-sm mb-3">{title}</h3>
+      {isEmpty ? (
+        <div className="rounded-md border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground text-center">
+          {emptyMessage}
+        </div>
+      ) : (
+        <div className="grid gap-2">{children}</div>
+      )}
+    </div>
   );
 }
