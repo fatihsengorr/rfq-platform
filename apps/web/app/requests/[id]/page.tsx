@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getPricingUsers, getRfqById, getComments, isApiClientError } from "../../api";
+import { getPricingUsers, getRfqById, getComments, getRfqRevisions, isApiClientError } from "../../api";
 import { FlashNotice } from "../../components/flash-notice";
 import { getSession } from "../../../lib/session";
 import { Card } from "@/components/ui/card";
@@ -72,6 +72,16 @@ export default async function RequestDetailPage({ params }: { params: Promise<Pa
     // Comments will load empty, polling will retry
   }
 
+  // Faz 3 — Feature 2: preload revisions server-side to avoid a client
+  // round-trip on first paint. RevisionsTab falls back to fetching when
+  // initialItems is undefined (eg. if this ever throws).
+  let initialRevisions: Awaited<ReturnType<typeof getRfqRevisions>> = [];
+  try {
+    initialRevisions = await getRfqRevisions(id);
+  } catch {
+    initialRevisions = [];
+  }
+
   const availableActions: Array<{ key: ActionTab; label: string }> = [];
   if (canReviseRequest) {
     availableActions.push({ key: "revise", label: "Revise Request" });
@@ -122,7 +132,7 @@ export default async function RequestDetailPage({ params }: { params: Promise<Pa
               <ActionCenter record={record} pricingUsers={pricingUsers} availableActions={availableActions} />
             </TabsContent>
             <TabsContent value="revisions">
-              <RevisionsTab rfqId={id} />
+              <RevisionsTab rfqId={id} initialItems={initialRevisions} />
             </TabsContent>
             <TabsContent value="details">
               <DetailsCard record={record} />

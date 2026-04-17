@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { compareRfqRevisions, getRfqRevisions } from "../../../api";
+import { fetchRevisionDiff, fetchRevisions } from "../revision-actions";
 import type { RevisionTimelineItem, RfqRevisionDiff } from "@crm/shared";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,31 +23,39 @@ import { formatDateTime } from "@/lib/format";
 
 type Props = {
   rfqId: string;
+  initialItems?: RevisionTimelineItem[];
 };
 
 const selectCls =
   "h-9 rounded-md border border-input bg-card px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
-export function RevisionsTab({ rfqId }: Props) {
-  const [items, setItems] = useState<RevisionTimelineItem[] | null>(null);
-  const [loading, setLoading] = useState(true);
+export function RevisionsTab({ rfqId, initialItems }: Props) {
+  // Start with data from the server render when available — avoids a flash
+  // of "loading" and an extra round-trip on first paint.
+  const [items, setItems] = useState<RevisionTimelineItem[] | null>(initialItems ?? null);
+  const [loading, setLoading] = useState(!initialItems);
   const [error, setError] = useState<string | null>(null);
 
   // Compare picker state — both default to "current" (0) until user picks.
-  const [compareA, setCompareA] = useState<number>(-1);
+  const [compareA, setCompareA] = useState<number>(() => {
+    const firstRfq = initialItems?.find((i) => i.kind === "rfq");
+    return firstRfq && firstRfq.kind === "rfq" ? firstRfq.revisionNumber : -1;
+  });
   const [compareB, setCompareB] = useState<number>(0);
   const [diff, setDiff] = useState<RfqRevisionDiff | null>(null);
   const [comparing, setComparing] = useState(false);
 
   useEffect(() => {
+    // Skip the fetch when the server already handed us initial data.
+    if (initialItems) return;
+
     let cancelled = false;
     setLoading(true);
-    getRfqRevisions(rfqId)
+    fetchRevisions(rfqId)
       .then((data) => {
         if (!cancelled) {
           setItems(data);
           setError(null);
-          // Pre-select most recent RFQ revision vs current, if we have any.
           const firstRfq = data.find((i) => i.kind === "rfq");
           if (firstRfq && firstRfq.kind === "rfq") {
             setCompareA(firstRfq.revisionNumber);
@@ -63,14 +71,14 @@ export function RevisionsTab({ rfqId }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [rfqId]);
+  }, [rfqId, initialItems]);
 
   async function runCompare() {
     if (compareA < 0) return;
     setComparing(true);
     setDiff(null);
     try {
-      const result = await compareRfqRevisions(rfqId, compareA, compareB);
+      const result = await fetchRevisionDiff(rfqId, compareA, compareB);
       setDiff(result);
     } catch (e) {
       setError((e as Error).message);
