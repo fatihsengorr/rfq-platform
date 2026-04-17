@@ -50,6 +50,51 @@ export type QuoteRevision = {
   createdAt: string;
   createdBy: string;
   attachments: Attachment[];
+  // Faz 3 — Feature 2: reason for this revision (null on v1 legacy rows)
+  changeReason: string | null;
+  // Which RFQ revision this quote was priced against (optional manual link)
+  rfqRevisionId: string | null;
+  rfqRevisionNumber: number | null;
+};
+
+// Faz 3 — Feature 2: snapshot of an RFQ at a prior revision point.
+export type RfqRevisionRecord = {
+  id: string;
+  rfqId: string;
+  revisionNumber: number;
+  changeReason: string;
+  projectName: string;
+  deadline: string;
+  projectDetails: string;
+  requestedBy: string;
+  companyId: string | null;
+  contactId: string | null;
+  changedBy: string;
+  changedById: string;
+  changedAt: string;
+  attachments: Attachment[];
+};
+
+// Unified timeline item: either an RFQ revision, or a Quote revision.
+export type RevisionTimelineItem =
+  | ({ kind: "rfq" } & RfqRevisionRecord)
+  | ({ kind: "quote" } & QuoteRevision);
+
+// Diff of two RFQ revisions (or revision vs current state).
+export type RfqRevisionDiff = {
+  a: { revisionNumber: number; source: "revision" | "current" };
+  b: { revisionNumber: number; source: "revision" | "current" };
+  fields: Array<{
+    field: "projectName" | "deadline" | "projectDetails" | "requestedBy" | "companyId" | "contactId";
+    before: string | null;
+    after: string | null;
+    changed: boolean;
+  }>;
+  attachments: {
+    added: Attachment[];
+    removed: Attachment[];
+    unchanged: Attachment[];
+  };
 };
 
 export type Approval = {

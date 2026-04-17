@@ -80,6 +80,11 @@ export function ActionCenter({ record, pricingUsers, availableActions }: ActionC
   const pendingRevisions = record.quoteRevisions.filter((r: QuoteRevision) => r.status === "SUBMITTED");
   const isoDeadlineLocal = new Date(record.deadline).toISOString().slice(0, 16);
 
+  // Faz 3 — Feature 2: quote v2+ must carry a changeReason. Count existing quotes to decide.
+  const existingQuoteCount = record.quoteRevisions.length;
+  const isQuoteRevision = existingQuoteCount > 0;
+  const nextQuoteVersion = existingQuoteCount + 1;
+
   if (availableActions.length === 0) {
     return (
       <Card className="mt-4">
@@ -122,6 +127,22 @@ export function ActionCenter({ record, pricingUsers, availableActions }: ActionC
               <div className="grid gap-2"><Label>Requested By</Label><Input name="requestedBy" minLength={2} required defaultValue={record.requestedBy} /></div>
               <div className="grid gap-2"><Label>Deadline</Label><Input name="deadline" type="datetime-local" required defaultValue={isoDeadlineLocal} /></div>
               <div className="sm:col-span-2 grid gap-2"><Label>Project Details</Label><Textarea name="projectDetails" rows={4} minLength={10} required defaultValue={record.projectDetails} /></div>
+              {/* Faz 3 — Feature 2: changeReason required so revisions have an audit trail */}
+              <div className="sm:col-span-2 grid gap-2">
+                <Label htmlFor="changeReason">
+                  Reason for revision <span className="text-danger">*</span>
+                </Label>
+                <Textarea
+                  id="changeReason"
+                  name="changeReason"
+                  rows={2}
+                  minLength={10}
+                  maxLength={500}
+                  required
+                  placeholder="e.g. Architect added 5 more guestrooms and a bar area"
+                />
+                <p className="text-xs text-muted-foreground">This note is saved in the revision history so everyone can see what changed and why.</p>
+              </div>
               <SubmitBtn pending={revisePending} pendingText="Saving...">Save Request Revision</SubmitBtn>
             </form>
           </>
@@ -147,11 +168,37 @@ export function ActionCenter({ record, pricingUsers, availableActions }: ActionC
         {activeAction === "quote" && (
           <>
             <FormMessage state={quoteState} />
+            {isQuoteRevision && (
+              <div className="mb-3 rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                This will be <strong>Quote v{nextQuoteVersion}</strong>. Please tell us what changed vs. the previous quote.
+              </div>
+            )}
             <form action={quoteAction} className="grid sm:grid-cols-2 gap-4">
               <input type="hidden" name="rfqId" value={record.id} />
+              <input type="hidden" name="isRevision" value={isQuoteRevision ? "true" : "false"} />
               <div className="grid gap-2"><Label>Currency</Label><select name="currency" defaultValue="GBP" required className={selectClasses}><option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="TRY">TRY</option></select></div>
               <div className="grid gap-2"><Label>Total Amount</Label><Input name="totalAmount" type="number" step="0.01" min="0.01" required /></div>
               <div className="sm:col-span-2 grid gap-2"><Label>Notes</Label><Textarea name="notes" rows={3} minLength={2} required /></div>
+              {/* Faz 3 — Feature 2: reason + optional RFQ-revision link on v2+ quotes */}
+              {isQuoteRevision && (
+                <>
+                  <div className="sm:col-span-2 grid gap-2">
+                    <Label htmlFor="quote-changeReason">
+                      Reason for this revision <span className="text-danger">*</span>
+                    </Label>
+                    <Textarea
+                      id="quote-changeReason"
+                      name="changeReason"
+                      rows={2}
+                      minLength={10}
+                      maxLength={500}
+                      required
+                      placeholder="e.g. Reflected new room count; added bar unit; updated hardware spec"
+                    />
+                  </div>
+                  {/* pricingRfqRevisions dropdown removed for v1 — only relevant when prior RFQ revisions exist */}
+                </>
+              )}
               <div className="sm:col-span-2 grid gap-2">
                 <Label>Quote Files (optional)</Label>
                 <FileDropZone name="quoteFiles" />
@@ -159,7 +206,7 @@ export function ActionCenter({ record, pricingUsers, availableActions }: ActionC
               <div className="flex items-center gap-2"><input name="autoSubmitForApproval" type="checkbox" defaultChecked className="size-4 accent-primary" /><Label className="cursor-pointer">Submit For Approval</Label></div>
               <div className="sm:col-span-2">
                 <SubmitBtn pending={quotePending} pendingText="Creating quote & uploading...">
-                  <Receipt className="size-4" />Create Quote Revision
+                  <Receipt className="size-4" />Create Quote {isQuoteRevision ? `Revision v${nextQuoteVersion}` : "Revision"}
                 </SubmitBtn>
               </div>
             </form>

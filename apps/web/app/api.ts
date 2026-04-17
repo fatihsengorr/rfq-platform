@@ -1,4 +1,5 @@
 import type { Attachment, RfqRecord } from "./data";
+import type { RevisionTimelineItem, RfqRevisionDiff } from "@crm/shared";
 import { getSession, type SessionUser } from "../lib/session";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
@@ -188,6 +189,20 @@ export async function getRfqById(id: string): Promise<RfqRecord | null> {
   return request<RfqRecord>(`/api/rfqs/${id}`, { allowNotFound: true });
 }
 
+// Faz 3 — Feature 2: revision timeline & diff
+export async function getRfqRevisions(rfqId: string): Promise<RevisionTimelineItem[]> {
+  const result = await request<RevisionTimelineItem[]>(`/api/rfqs/${rfqId}/revisions`);
+  return result ?? [];
+}
+
+export async function compareRfqRevisions(
+  rfqId: string,
+  a: number,
+  b: number
+): Promise<RfqRevisionDiff | null> {
+  return request<RfqRevisionDiff>(`/api/rfqs/${rfqId}/revisions/compare?a=${a}&b=${b}`);
+}
+
 export async function createRfq(input: {
   projectName: string;
   deadline: string;
@@ -257,6 +272,10 @@ export async function createQuoteRevision(
     totalAmount: number;
     notes: string;
     autoSubmitForApproval: boolean;
+    // Faz 3 — Feature 2: required for v2+, optional on first quote
+    changeReason?: string;
+    // Which RFQ revision this quote was priced against
+    rfqRevisionId?: string;
   }
 ): Promise<{ id: string }> {
   return postAuthenticated<{ id: string }>(`/api/rfqs/${rfqId}/quotes`, input);
@@ -269,6 +288,8 @@ export async function reviseRfqRequest(
     deadline: string;
     projectDetails: string;
     requestedBy: string;
+    // Faz 3 — Feature 2: required reason for this revision.
+    changeReason: string;
   }
 ): Promise<RfqRecord> {
   return patchAuthenticated<RfqRecord>(`/api/rfqs/${rfqId}/request`, input);

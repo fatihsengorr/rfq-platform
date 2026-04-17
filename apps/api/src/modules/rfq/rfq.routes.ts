@@ -4,6 +4,7 @@ import { z } from "zod";
 import { sendError, requireAuth } from "../../middleware.js";
 import { config } from "../../config.js";
 import { rfqStore } from "./rfq.store.js";
+import { listRevisions, compareRevisions } from "./revision.service.js";
 import { downloadAttachmentFromStorage, uploadAttachmentToStorage, getPresignedUploadUrl, getPresignedDownloadUrl } from "./storage.js";
 import { type UserRole as RfqRole } from "./rfq.types.js";
 import { sendNotification } from "../email/email.service.js";
@@ -23,11 +24,21 @@ const createRfqSchema = z.object({
   contactId: z.string().uuid().optional(),
 });
 
+// Faz 3 — Feature 2: revising the request requires a reason so the audit
+// trail captures *why* the scope changed.
+const reviseRfqSchema = createRfqSchema.extend({
+  changeReason: z.string().trim().min(10).max(500),
+});
+
 const createRevisionSchema = z.object({
   currency: z.enum(["GBP", "EUR", "USD", "TRY"]),
   totalAmount: z.number().positive(),
   notes: z.string().min(2),
-  autoSubmitForApproval: z.boolean().default(true)
+  autoSubmitForApproval: z.boolean().default(true),
+  // Faz 3 — Feature 2: required on quote v2+ (API enforces per-version).
+  changeReason: z.string().trim().min(10).max(500).optional(),
+  // Optional: which RFQ revision this quote was priced against.
+  rfqRevisionId: z.string().uuid().optional(),
 });
 
 const approvalSchema = z.object({
@@ -197,6 +208,72 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
     return record;
   });
 
+  // Faz 3 — Feature 2: revision timeline (RFQ + Quote revisions)
+  server.get("/:id/revisions", async (request, reply) => {
+    const session = await requireAuth(request, reply);
+    if (!session) return;
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ code: "INVALID_REQUEST", message: "Route parameter 'id' must be a valid UUID." });
+    }
+
+    // Viewer must have access to the RFQ itself before seeing revisions.
+    const role = mapDbRoleToRfqRole(session.user.role);
+    const record = await rfqStore.getById(params.data.id, role, session.user.id);
+    if (!record) {
+      return reply.status(404).send({ code: "RFQ_NOT_FOUND", message: "RFQ record was not found." });
+    }
+
+    try {
+      const items = await listRevisions(params.data.id);
+      return reply.status(200).send(items);
+    } catch (error) {
+      return sendError(reply, error);
+    }
+  });
+
+  // Faz 3 — Feature 2: diff two RFQ revisions.
+  // a, b are revisionNumbers. Use 0 to reference the current live RFQ.
+  server.get("/:id/revisions/compare", async (request, reply) => {
+    const session = await requireAuth(request, reply);
+    if (!session) return;
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ code: "INVALID_REQUEST", message: "Route parameter 'id' must be a valid UUID." });
+    }
+
+    const query = z
+      .object({
+        a: z.coerce.number().int().min(0),
+        b: z.coerce.number().int().min(0),
+      })
+      .safeParse(request.query);
+
+    if (!query.success) {
+      return reply.status(400).send({
+        code: "INVALID_REQUEST",
+        message: "Query params 'a' and 'b' must be non-negative integers (0 = current).",
+        details: query.error.flatten(),
+      });
+    }
+
+    // Viewer must have access to the RFQ.
+    const role = mapDbRoleToRfqRole(session.user.role);
+    const record = await rfqStore.getById(params.data.id, role, session.user.id);
+    if (!record) {
+      return reply.status(404).send({ code: "RFQ_NOT_FOUND", message: "RFQ record was not found." });
+    }
+
+    try {
+      const diff = await compareRevisions(params.data.id, query.data.a, query.data.b);
+      return reply.status(200).send(diff);
+    } catch (error) {
+      return sendError(reply, error);
+    }
+  });
+
   server.post("/", async (request, reply) => {
     const session = await requireAuth(request, reply);
 
@@ -268,7 +345,7 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
       return reply.status(400).send({ code: "INVALID_REQUEST", message: "Route parameter 'id' must be a valid UUID." });
     }
 
-    const parsed = createRfqSchema.safeParse(request.body);
+    const parsed = reviseRfqSchema.safeParse(request.body);
 
     if (!parsed.success) {
       return reply.status(400).send({
@@ -279,7 +356,10 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
     }
 
     try {
-      const updated = await rfqStore.reviseRequest(params.data.id, parsed.data);
+      const updated = await rfqStore.reviseRequest(params.data.id, {
+        ...parsed.data,
+        changedById: session.user.id,
+      });
       return reply.status(200).send(updated);
     } catch (error) {
       return sendError(reply, error);

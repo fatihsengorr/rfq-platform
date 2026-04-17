@@ -39,60 +39,62 @@ enum ApprovalDecision {
 }
 
 model User {
-  id          String    @id @default(uuid())
-  email       String    @unique
-  fullName    String
+  id           String   @id @default(uuid())
+  email        String   @unique
+  fullName     String
   passwordHash String?
-  role        UserRole
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  role         UserRole
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  rfqsCreated          Rfq[]           @relation("rfq_created_by")
-  quoteRevisions       QuoteRevision[] @relation("quote_created_by")
-  approvals            QuoteApproval[] @relation("approval_decided_by")
-  attachmentUploads    Attachment[]    @relation("attachment_uploaded_by")
-  leadOwners           Lead[]          @relation("lead_owner")
-  rfqsAssignedPricing  Rfq[]           @relation("rfq_assigned_pricing_user")
-  rfqsAssignedBy       Rfq[]           @relation("rfq_assigned_by_user")
-  passwordResetTokens  PasswordResetToken[]
-  sessions             Session[]
-  notifications        Notification[] @relation("notification_recipient")
-  comments             Comment[]      @relation("comment_author")
+  rfqsCreated         Rfq[]                @relation("rfq_created_by")
+  quoteRevisions      QuoteRevision[]      @relation("quote_created_by")
+  approvals           QuoteApproval[]      @relation("approval_decided_by")
+  attachmentUploads   Attachment[]         @relation("attachment_uploaded_by")
+  leadOwners          Lead[]               @relation("lead_owner")
+  rfqsAssignedPricing Rfq[]                @relation("rfq_assigned_pricing_user")
+  rfqsAssignedBy      Rfq[]                @relation("rfq_assigned_by_user")
+  passwordResetTokens PasswordResetToken[]
+  sessions            Session[]
+  notifications       Notification[]       @relation("notification_recipient")
+  comments            Comment[]            @relation("comment_author")
+  rfqRevisions        RfqRevision[]        @relation("rfq_revision_changed_by")
 }
 
 model Rfq {
-  id             String      @id @default(uuid())
+  id             String    @id @default(uuid())
   projectName    String
   deadline       DateTime
   projectDetails String
   requestedBy    String
-  status         RfqStatus   @default(NEW)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  status         RfqStatus @default(NEW)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   // Faz 3: Deal outcome tracking (WON/LOST)
-  wonAt          DateTime?
-  lostAt         DateTime?
-  lostReason     String?
+  wonAt      DateTime?
+  lostAt     DateTime?
+  lostReason String?
 
-  createdById    String
-  createdBy      User        @relation("rfq_created_by", fields: [createdById], references: [id])
+  createdById           String
+  createdBy             User      @relation("rfq_created_by", fields: [createdById], references: [id])
   assignedPricingUserId String?
-  assignedPricingUser   User?       @relation("rfq_assigned_pricing_user", fields: [assignedPricingUserId], references: [id])
+  assignedPricingUser   User?     @relation("rfq_assigned_pricing_user", fields: [assignedPricingUserId], references: [id])
   assignedById          String?
-  assignedBy            User?       @relation("rfq_assigned_by_user", fields: [assignedById], references: [id])
+  assignedBy            User?     @relation("rfq_assigned_by_user", fields: [assignedById], references: [id])
   assignedAt            DateTime?
 
-  companyId      String?
-  company        CustomerCompany? @relation(fields: [companyId], references: [id])
-  contactId      String?
-  contact        Contact?         @relation(fields: [contactId], references: [id])
+  companyId String?
+  company   CustomerCompany? @relation(fields: [companyId], references: [id])
+  contactId String?
+  contact   Contact?         @relation(fields: [contactId], references: [id])
 
   attachments    Attachment[]
   quoteRevisions QuoteRevision[]
   notifications  Notification[]
   comments       Comment[]
+  revisions      RfqRevision[]
 
   @@index([createdById])
   @@index([assignedPricingUserId])
@@ -100,111 +102,160 @@ model Rfq {
   @@index([companyId])
 }
 
-model QuoteRevision {
-  id             String              @id @default(uuid())
-  versionNumber  Int
-  currency       String
-  totalAmount    Decimal             @db.Decimal(18, 2)
-  notes          String
-  status         QuoteRevisionStatus @default(DRAFT)
-  createdAt      DateTime            @default(now())
+// Faz 3 — Feature 2: Snapshot of an RFQ's editable fields at a point in time.
+// Written by rfqStore.reviseRequest before the current Rfq row is updated.
+// Each snapshot captures who changed it and why (changeReason required).
+// Attachments uploaded as part of a revision can link to the corresponding
+// RfqRevision.id so old specs stay bound to the revision they came with.
+model RfqRevision {
+  id    String @id @default(uuid())
+  rfqId String
+  rfq   Rfq    @relation(fields: [rfqId], references: [id], onDelete: Cascade)
 
-  rfqId          String
-  rfq            Rfq                 @relation(fields: [rfqId], references: [id])
+  revisionNumber Int
+  changeReason   String // min 10 chars enforced at the API layer
 
-  createdById    String
-  createdBy      User                @relation("quote_created_by", fields: [createdById], references: [id])
+  // Snapshot of the editable RFQ fields at the time of this revision.
+  projectName    String
+  deadline       DateTime
+  projectDetails String
+  requestedBy    String
+  companyId      String?
+  contactId      String?
+
+  changedById String
+  changedBy   User     @relation("rfq_revision_changed_by", fields: [changedById], references: [id])
+  changedAt   DateTime @default(now())
 
   attachments    Attachment[]
-  approvals      QuoteApproval[]
+  quoteRevisions QuoteRevision[] @relation("quote_to_rfq_revision")
+
+  @@unique([rfqId, revisionNumber])
+  @@index([rfqId, revisionNumber])
+}
+
+model QuoteRevision {
+  id            String              @id @default(uuid())
+  versionNumber Int
+  currency      String
+  totalAmount   Decimal             @db.Decimal(18, 2)
+  notes         String
+  status        QuoteRevisionStatus @default(DRAFT)
+  createdAt     DateTime            @default(now())
+
+  // Faz 3 — Feature 2: explains why this revision was issued.
+  // Required for any revision after v1 (API layer enforces).
+  changeReason String?
+
+  rfqId String
+  rfq   Rfq    @relation(fields: [rfqId], references: [id])
+
+  // Optional link to the specific RfqRevision this quote was priced against.
+  // Pricing team sets this manually; defaults to the current RFQ state.
+  rfqRevisionId String?
+  rfqRevision   RfqRevision? @relation("quote_to_rfq_revision", fields: [rfqRevisionId], references: [id])
+
+  createdById String
+  createdBy   User   @relation("quote_created_by", fields: [createdById], references: [id])
+
+  attachments Attachment[]
+  approvals   QuoteApproval[]
 
   @@unique([rfqId, versionNumber])
   @@index([rfqId])
+  @@index([rfqRevisionId])
 }
 
 model QuoteApproval {
-  id              String           @id @default(uuid())
-  decision        ApprovalDecision
-  comment         String
-  decidedAt       DateTime         @default(now())
+  id        String           @id @default(uuid())
+  decision  ApprovalDecision
+  comment   String
+  decidedAt DateTime         @default(now())
 
   quoteRevisionId String
-  quoteRevision   QuoteRevision    @relation(fields: [quoteRevisionId], references: [id])
+  quoteRevision   QuoteRevision @relation(fields: [quoteRevisionId], references: [id])
 
-  decidedById     String
-  decidedBy       User             @relation("approval_decided_by", fields: [decidedById], references: [id])
+  decidedById String
+  decidedBy   User   @relation("approval_decided_by", fields: [decidedById], references: [id])
 }
 
 model Attachment {
-  id                String         @id @default(uuid())
-  category          String
-  fileName          String
-  mimeType          String
-  sizeBytes         Int
-  storageKey        String
-  publicUrl         String
-  createdAt         DateTime       @default(now())
+  id         String   @id @default(uuid())
+  category   String
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  storageKey String
+  publicUrl  String
+  createdAt  DateTime @default(now())
 
-  rfqId             String?
-  rfq               Rfq?           @relation(fields: [rfqId], references: [id])
+  rfqId String?
+  rfq   Rfq?    @relation(fields: [rfqId], references: [id])
 
-  quoteRevisionId   String?
-  quoteRevision     QuoteRevision? @relation(fields: [quoteRevisionId], references: [id])
+  quoteRevisionId String?
+  quoteRevision   QuoteRevision? @relation(fields: [quoteRevisionId], references: [id])
 
-  uploadedById      String
-  uploadedBy        User           @relation("attachment_uploaded_by", fields: [uploadedById], references: [id])
+  // Faz 3 — Feature 2: binds an attachment to the RFQ revision it came in with.
+  // When an architect sends a revised spec PDF, pricing uploads it against
+  // the new revision, leaving the previous spec attached to the previous revision.
+  rfqRevisionId String?
+  rfqRevision   RfqRevision? @relation(fields: [rfqRevisionId], references: [id])
+
+  uploadedById String
+  uploadedBy   User   @relation("attachment_uploaded_by", fields: [uploadedById], references: [id])
 
   @@index([rfqId])
   @@index([quoteRevisionId])
+  @@index([rfqRevisionId])
 }
 
 model CustomerCompany {
-  id             String    @id @default(uuid())
-  name           String
-  sector         String?
-  country        String?
-  city           String?
-  website        String?
-  notes          String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id        String   @id @default(uuid())
+  name      String
+  sector    String?
+  country   String?
+  city      String?
+  website   String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  contacts       Contact[]
-  leads          Lead[]
-  rfqs           Rfq[]
+  contacts Contact[]
+  leads    Lead[]
+  rfqs     Rfq[]
 }
 
 model Contact {
-  id               String           @id @default(uuid())
-  fullName         String
-  email            String?
-  phone            String?
-  title            String?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id        String   @id @default(uuid())
+  fullName  String
+  email     String?
+  phone     String?
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  companyId        String
-  company          CustomerCompany  @relation(fields: [companyId], references: [id])
-  rfqs             Rfq[]
+  companyId String
+  company   CustomerCompany @relation(fields: [companyId], references: [id])
+  rfqs      Rfq[]
 
   @@index([companyId])
 }
 
 model Lead {
-  id                String           @id @default(uuid())
+  id                String    @id @default(uuid())
   title             String
   description       String?
-  stage             String           @default("NEW")
-  expectedValue     Decimal?         @db.Decimal(18, 2)
+  stage             String    @default("NEW")
+  expectedValue     Decimal?  @db.Decimal(18, 2)
   expectedCloseDate DateTime?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  companyId         String
-  company           CustomerCompany  @relation(fields: [companyId], references: [id])
+  companyId String
+  company   CustomerCompany @relation(fields: [companyId], references: [id])
 
-  ownerId           String
-  owner             User             @relation("lead_owner", fields: [ownerId], references: [id])
+  ownerId String
+  owner   User   @relation("lead_owner", fields: [ownerId], references: [id])
 
   @@index([companyId])
   @@index([ownerId])
@@ -215,11 +266,11 @@ model Comment {
   body      String
   createdAt DateTime @default(now())
 
-  rfqId     String
-  rfq       Rfq      @relation(fields: [rfqId], references: [id])
+  rfqId String
+  rfq   Rfq    @relation(fields: [rfqId], references: [id])
 
-  authorId  String
-  author    User     @relation("comment_author", fields: [authorId], references: [id])
+  authorId String
+  author   User   @relation("comment_author", fields: [authorId], references: [id])
 
   @@index([rfqId, createdAt])
 }
@@ -243,26 +294,26 @@ model Notification {
 }
 
 model PasswordResetToken {
-  id         String   @id @default(uuid())
-  tokenHash  String   @unique
-  purpose    String   @default("reset")   // "reset" | "invite"
-  expiresAt  DateTime
-  usedAt     DateTime?
-  createdAt  DateTime @default(now())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  purpose   String    @default("reset") // "reset" | "invite"
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
 }
 
 model Session {
-  id         String   @id @default(uuid())
-  tokenHash  String   @unique
-  expiresAt  DateTime
-  revokedAt  DateTime?
-  createdAt  DateTime @default(now())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, revokedAt, expiresAt])
 }

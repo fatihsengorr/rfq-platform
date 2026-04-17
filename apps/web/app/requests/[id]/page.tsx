@@ -10,6 +10,8 @@ import { SummaryCard } from "./components/summary-card";
 import { ActionCenter } from "./components/action-center";
 import { DetailsCard } from "./components/details-card";
 import { CommentSection } from "./components/comment-section";
+import { RevisionsTab } from "./components/revisions-tab";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 type Params = { id: string };
 type ActionTab = "revise" | "upload" | "quote" | "assign" | "approval" | "outcome";
@@ -110,8 +112,22 @@ export default async function RequestDetailPage({ params }: { params: Promise<Pa
         {/* Left column — main workflow */}
         <div className="min-w-0 space-y-4">
           <SummaryCard record={record} />
-          <ActionCenter record={record} pricingUsers={pricingUsers} availableActions={availableActions} />
-          <DetailsCard record={record} />
+          <Tabs defaultValue="actions" className="w-full">
+            <TabsList>
+              <TabsTrigger value="actions">Actions</TabsTrigger>
+              <TabsTrigger value="revisions">Revisions</TabsTrigger>
+              <TabsTrigger value="details">Details</TabsTrigger>
+            </TabsList>
+            <TabsContent value="actions">
+              <ActionCenter record={record} pricingUsers={pricingUsers} availableActions={availableActions} />
+            </TabsContent>
+            <TabsContent value="revisions">
+              <RevisionsTab rfqId={id} />
+            </TabsContent>
+            <TabsContent value="details">
+              <DetailsCard record={record} />
+            </TabsContent>
+          </Tabs>
         </div>
 
         {/* Right column — conversation (sticky) */}

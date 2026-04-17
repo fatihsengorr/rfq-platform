@@ -38,7 +38,10 @@ const rfqInclude = {
           decidedAt: "asc" as const
         }
       },
-      createdBy: true
+      createdBy: true,
+      rfqRevision: {
+        select: { revisionNumber: true }
+      }
     },
     orderBy: {
       versionNumber: "asc" as const
@@ -52,6 +55,7 @@ type QuoteRevisionWithRelations = Prisma.QuoteRevisionGetPayload<{
     attachments: { include: { uploadedBy: true } };
     createdBy: true;
     approvals: { include: { decidedBy: true } };
+    rfqRevision: { select: { revisionNumber: true } };
   };
 }>;
 type QuoteApprovalWithUser = Prisma.QuoteApprovalGetPayload<{ include: { decidedBy: true } }>;
@@ -78,7 +82,10 @@ function quoteRevisionToDto(item: QuoteRevisionWithRelations): QuoteRevision {
     status: item.status,
     createdAt: item.createdAt.toISOString(),
     createdBy: item.createdBy.fullName,
-    attachments: item.attachments.map(attachmentToDto)
+    attachments: item.attachments.map(attachmentToDto),
+    changeReason: item.changeReason ?? null,
+    rfqRevisionId: item.rfqRevisionId ?? null,
+    rfqRevisionNumber: item.rfqRevision?.revisionNumber ?? null,
   };
 }
 
@@ -224,24 +231,71 @@ export class RfqStore {
       deadline: string;
       projectDetails: string;
       requestedBy: string;
+      changeReason: string;
+      changedById: string;
     }
   ): Promise<RfqRecord> {
-    try {
-      await prisma.rfq.update({
-        where: {
-          id: rfqId
+    if (!input.changeReason || input.changeReason.trim().length < 10) {
+      throw new ApiError(
+        "INVALID_REQUEST",
+        "changeReason is required (min 10 characters) when revising an RFQ request.",
+        400
+      );
+    }
+
+    // Load the current state to snapshot before updating. This is the "old"
+    // version that will become RfqRevision v{n+1}.
+    const current = await prisma.rfq.findUnique({
+      where: { id: rfqId },
+      select: {
+        id: true,
+        projectName: true,
+        deadline: true,
+        projectDetails: true,
+        requestedBy: true,
+        companyId: true,
+        contactId: true,
+      },
+    });
+
+    if (!current) {
+      throw new ApiError("RFQ_NOT_FOUND", "RFQ record was not found.", 404);
+    }
+
+    // Next revision number — counts prior snapshots.
+    const maxRevision = await prisma.rfqRevision.aggregate({
+      where: { rfqId },
+      _max: { revisionNumber: true },
+    });
+    const nextRevisionNumber = (maxRevision._max.revisionNumber ?? 0) + 1;
+
+    // Atomically snapshot the old state and apply the new one.
+    await prisma.$transaction([
+      prisma.rfqRevision.create({
+        data: {
+          rfqId,
+          revisionNumber: nextRevisionNumber,
+          changeReason: input.changeReason.trim(),
+          projectName: current.projectName,
+          deadline: current.deadline,
+          projectDetails: current.projectDetails,
+          requestedBy: current.requestedBy,
+          companyId: current.companyId,
+          contactId: current.contactId,
+          changedById: input.changedById,
         },
+      }),
+      prisma.rfq.update({
+        where: { id: rfqId },
         data: {
           projectName: input.projectName,
           deadline: new Date(input.deadline),
           projectDetails: input.projectDetails,
           requestedBy: input.requestedBy,
-          status: "REVISION_REQUESTED"
-        }
-      });
-    } catch {
-      throw new ApiError("RFQ_NOT_FOUND", "RFQ record was not found.", 404);
-    }
+          status: "REVISION_REQUESTED",
+        },
+      }),
+    ]);
 
     const updated = await this.getById(rfqId, "ADMIN", "");
 
@@ -301,6 +355,11 @@ export class RfqStore {
       createdById: string;
       createdByRole: UserRole;
       autoSubmitForApproval: boolean;
+      // Faz 3 — Feature 2: required on v2+, optional on v1 (first quote).
+      changeReason?: string;
+      // Which RFQ revision this quote targets. If omitted, the quote is
+      // implicitly against the current (live) RFQ state.
+      rfqRevisionId?: string;
     }
   ): Promise<QuoteRevision> {
     const rfq = await prisma.rfq.findUnique({
@@ -325,12 +384,35 @@ export class RfqStore {
       }
     }
 
+    // Validate rfqRevisionId, if supplied, actually belongs to this RFQ.
+    if (input.rfqRevisionId) {
+      const rev = await prisma.rfqRevision.findUnique({
+        where: { id: input.rfqRevisionId },
+        select: { rfqId: true },
+      });
+      if (!rev || rev.rfqId !== rfqId) {
+        throw new ApiError("INVALID_REQUEST", "rfqRevisionId does not belong to this RFQ.", 400);
+      }
+    }
+
     const maxVersion = await prisma.quoteRevision.aggregate({
       where: { rfqId },
       _max: { versionNumber: true }
     });
 
     const versionNumber = (maxVersion._max.versionNumber ?? 0) + 1;
+
+    // Any quote after v1 must carry a reason for the revision.
+    if (versionNumber > 1) {
+      if (!input.changeReason || input.changeReason.trim().length < 10) {
+        throw new ApiError(
+          "INVALID_REQUEST",
+          "changeReason is required (min 10 characters) on quote revisions after v1.",
+          400
+        );
+      }
+    }
+
     const revisionStatus = input.autoSubmitForApproval ? "SUBMITTED" : "DRAFT";
 
     const revision = await prisma.quoteRevision.create({
@@ -341,7 +423,9 @@ export class RfqStore {
         totalAmount: new Prisma.Decimal(input.totalAmount),
         notes: input.notes,
         status: revisionStatus,
-        createdById: input.createdById
+        createdById: input.createdById,
+        changeReason: input.changeReason?.trim() ?? null,
+        rfqRevisionId: input.rfqRevisionId ?? null,
       },
       include: {
         attachments: {
@@ -354,6 +438,9 @@ export class RfqStore {
           include: {
             decidedBy: true
           }
+        },
+        rfqRevision: {
+          select: { revisionNumber: true }
         }
       }
     });

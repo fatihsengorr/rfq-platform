@@ -53,14 +53,24 @@ export async function reviseRequestAction(_prev: ActionResult, formData: FormDat
   const requestedBy = String(formData.get("requestedBy") ?? "").trim();
   const deadlineRaw = String(formData.get("deadline") ?? "").trim();
   const projectDetails = String(formData.get("projectDetails") ?? "").trim();
+  const changeReason = String(formData.get("changeReason") ?? "").trim();
 
   if (!rfqId || !projectName || !requestedBy || !deadlineRaw || !projectDetails) {
     return { status: "error", message: "All fields are required." };
   }
 
+  // Faz 3 — Feature 2: changeReason is mandatory for every revision.
+  if (changeReason.length < 10) {
+    return {
+      status: "error",
+      message: "Please describe why you're revising this RFQ (at least 10 characters).",
+      fieldErrors: { changeReason: "Reason is required (min 10 chars)" },
+    };
+  }
+
   try {
     const deadline = new Date(deadlineRaw).toISOString();
-    await reviseRfqRequest(rfqId, { projectName, requestedBy, deadline, projectDetails });
+    await reviseRfqRequest(rfqId, { projectName, requestedBy, deadline, projectDetails, changeReason });
     revalidateRfq(rfqId);
     return { status: "success", message: "RFQ request details were revised." };
   } catch (error) {
@@ -154,9 +164,22 @@ export async function createQuoteRevisionAction(_prev: ActionResult, formData: F
   const notes = String(formData.get("notes") ?? "").trim();
   const autoSubmitForApproval = formData.get("autoSubmitForApproval") === "on";
   const quoteFiles = parseFiles(formData, "quoteFiles");
+  // Faz 3 — Feature 2: optional on v1, required on v2+ (API enforces)
+  const changeReasonRaw = String(formData.get("changeReason") ?? "").trim();
+  const rfqRevisionIdRaw = String(formData.get("rfqRevisionId") ?? "").trim();
+  const isRevision = formData.get("isRevision") === "true";
 
   if (!rfqId || !currency || !totalAmountRaw || !notes) {
     return { status: "error", message: "All fields are required." };
+  }
+
+  // Client-side enforcement when we know this is a v2+ revision.
+  if (isRevision && changeReasonRaw.length < 10) {
+    return {
+      status: "error",
+      message: "Please describe why you're creating this quote revision (at least 10 characters).",
+      fieldErrors: { changeReason: "Reason is required (min 10 chars)" },
+    };
   }
 
   if (quoteFiles.length > MAX_ATTACHMENT_FILES) {
@@ -173,7 +196,14 @@ export async function createQuoteRevisionAction(_prev: ActionResult, formData: F
   }
 
   try {
-    const created = await createQuoteRevision(rfqId, { currency, totalAmount, notes, autoSubmitForApproval });
+    const created = await createQuoteRevision(rfqId, {
+      currency,
+      totalAmount,
+      notes,
+      autoSubmitForApproval,
+      ...(changeReasonRaw ? { changeReason: changeReasonRaw } : {}),
+      ...(rfqRevisionIdRaw ? { rfqRevisionId: rfqRevisionIdRaw } : {}),
+    });
 
     let fileMessage = "";
     if (quoteFiles.length > 0) {

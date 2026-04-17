@@ -4,6 +4,7 @@ export type ApiErrorCode =
   | "FORBIDDEN"
   | "RFQ_NOT_FOUND"
   | "QUOTE_REVISION_NOT_FOUND"
+  | "REVISION_NOT_FOUND"
   | "USER_NOT_FOUND"
   | "USER_EMAIL_EXISTS"
   | "WEAK_PASSWORD"
