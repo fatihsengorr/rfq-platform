@@ -69,8 +69,8 @@ export function DetailsCard({ record }: DetailsCardProps) {
         )}
 
         {activeTab === "files" && (
-          <div className="grid sm:grid-cols-2 gap-6 items-start">
-            <FileColumn
+          <div className="space-y-6">
+            <FileSection
               title="Request Files"
               emptyMessage="No request attachments yet."
               isEmpty={record.attachments.length === 0}
@@ -78,8 +78,8 @@ export function DetailsCard({ record }: DetailsCardProps) {
               {record.attachments.map((a) => (
                 <FilePreviewItem key={a.id} attachment={a} />
               ))}
-            </FileColumn>
-            <FileColumn
+            </FileSection>
+            <FileSection
               title="Quote Files"
               emptyMessage="No quote attachments visible."
               isEmpty={record.quoteRevisions.every((r) => r.attachments.length === 0)}
@@ -89,7 +89,7 @@ export function DetailsCard({ record }: DetailsCardProps) {
                   <FilePreviewItem key={a.id} attachment={a} versionLabel={`V${r.versionNumber}`} />
                 ))
               )}
-            </FileColumn>
+            </FileSection>
           </div>
         )}
 
@@ -99,13 +99,12 @@ export function DetailsCard({ record }: DetailsCardProps) {
 }
 
 /**
- * Each files column (Request / Quote) renders inside its own bordered block
- * so an empty state has the same visual weight as a populated one. Without
- * this, a single-line "No attachments" string on one side was visually
- * colliding with the file tiles on the other side (grid row-stretch made
- * the text land in the middle of a neighbouring tile).
+ * A vertical section for a group of files (Request or Quote). Stacking the
+ * two sections (instead of a side-by-side grid) sidesteps the collision bug
+ * we had before, where an empty column's text landed in the middle of the
+ * neighbouring column's file tiles due to grid row-stretch.
  */
-function FileColumn({
+function FileSection({
   title,
   emptyMessage,
   isEmpty,
@@ -117,12 +116,10 @@ function FileColumn({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-w-0">
+    <div>
       <h3 className="font-bold text-sm mb-3">{title}</h3>
       {isEmpty ? (
-        <div className="rounded-md border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground text-center">
-          {emptyMessage}
-        </div>
+        <p className="text-sm text-muted-foreground italic">{emptyMessage}</p>
       ) : (
         <div className="grid gap-2">{children}</div>
       )}
