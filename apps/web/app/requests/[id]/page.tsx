@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getPricingUsers, getRfqById, getComments, getRfqRevisions, isApiClientError } from "../../api";
+import { getPricingUsers, getRfqById, getComments, getRfqRevisions, getRfqFollowUps, isApiClientError } from "../../api";
 import { FlashNotice } from "../../components/flash-notice";
 import { getSession } from "../../../lib/session";
 import { Card } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import { RevisionsTab } from "./components/revisions-tab";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 type Params = { id: string };
-type ActionTab = "revise" | "upload" | "quote" | "assign" | "approval" | "outcome";
+type ActionTab = "revise" | "upload" | "quote" | "assign" | "approval" | "outcome" | "followup";
 
 /* Cross-page flash notices (e.g. after creating a new RFQ and redirecting here).
    In-page form feedback is now handled inline via useActionState. */
@@ -36,6 +36,9 @@ export default async function RequestDetailPage({ params }: { params: Promise<Pa
   const canManageAssignmentAndApproval = role === "ISTANBUL_MANAGER" || role === "ADMIN";
   // WON/LOST is a customer-outcome call. London Sales knows first, managers finalize.
   const canMarkOutcome = role === "LONDON_SALES" || role === "ISTANBUL_MANAGER" || role === "ADMIN";
+  // Faz 3 — Feature 3: Follow-up is a sales/manager concern (chasing the
+  // customer). Pricing team doesn't log follow-ups.
+  const canLogFollowUp = role === "LONDON_SALES" || role === "ISTANBUL_MANAGER" || role === "ADMIN";
 
   let record = null;
   try {
@@ -82,6 +85,14 @@ export default async function RequestDetailPage({ params }: { params: Promise<Pa
     initialRevisions = [];
   }
 
+  // Faz 3 — Feature 3: preload follow-up activities for the Follow-up tab.
+  let initialFollowUps: Awaited<ReturnType<typeof getRfqFollowUps>> = [];
+  try {
+    initialFollowUps = await getRfqFollowUps(id);
+  } catch {
+    initialFollowUps = [];
+  }
+
   const availableActions: Array<{ key: ActionTab; label: string }> = [];
   if (canReviseRequest) {
     availableActions.push({ key: "revise", label: "Revise Request" });
@@ -101,6 +112,13 @@ export default async function RequestDetailPage({ params }: { params: Promise<Pa
   const isResolved = record.status === "WON" || record.status === "LOST" || record.status === "CLOSED";
   if (canMarkOutcome && (hasQuote || isResolved)) {
     availableActions.push({ key: "outcome", label: "Outcome" });
+  }
+
+  // Faz 3 — Feature 3: Follow-up tab appears once the RFQ has been QUOTED
+  // (i.e. sent to the customer) OR has prior follow-up activity to show.
+  const canShowFollowUp = canLogFollowUp && (record.status === "QUOTED" || initialFollowUps.length > 0);
+  if (canShowFollowUp) {
+    availableActions.push({ key: "followup", label: "Follow-up" });
   }
 
   return (
@@ -129,7 +147,12 @@ export default async function RequestDetailPage({ params }: { params: Promise<Pa
               <TabsTrigger value="details">Details</TabsTrigger>
             </TabsList>
             <TabsContent value="actions">
-              <ActionCenter record={record} pricingUsers={pricingUsers} availableActions={availableActions} />
+              <ActionCenter
+                record={record}
+                pricingUsers={pricingUsers}
+                availableActions={availableActions}
+                followUpActivities={initialFollowUps}
+              />
             </TabsContent>
             <TabsContent value="revisions">
               <RevisionsTab rfqId={id} initialItems={initialRevisions} />

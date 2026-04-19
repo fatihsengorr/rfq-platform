@@ -208,3 +208,35 @@ export function deadlineWarningNotification(
     ),
   };
 }
+
+/**
+ * Faz 3 — Feature 3: Stall / follow-up reminder.
+ *
+ * Sent to managers when a QUOTED RFQ has been silent past the configured
+ * threshold (10 days by default, with a stronger "stale" variant at 60).
+ */
+export function followUpReminderNotification(
+  projectName: string,
+  customerLabel: string,
+  daysSilent: number,
+  rfqUrl: string,
+): { subject: string; html: string } {
+  const isStale = daysSilent >= 60;
+  const urgency = isStale ? "stale" : "awaiting follow-up";
+
+  return {
+    subject: `Quote follow-up needed (${daysSilent} days): ${projectName}`,
+    html: layout(
+      isStale ? "Quote has gone cold" : "Quote is awaiting follow-up",
+      `<p style="margin:0;color:#4a3f35;font-size:14px;line-height:1.6">
+        <strong>${projectName}</strong> (${customerLabel}) has been ${urgency}
+        for <strong>${daysSilent} days</strong> since the quote was approved.
+      </p>
+      <p style="margin:12px 0 0;color:#4a3f35;font-size:14px;line-height:1.6">
+        Please chase the customer for a decision, then log the follow-up in the
+        platform so this reminder stops firing.
+      </p>
+      ${button(rfqUrl, "Open RFQ")}`,
+    ),
+  };
+}

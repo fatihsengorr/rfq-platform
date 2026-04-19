@@ -1,0 +1,15 @@
+[Unit]
+Description=RFQ Platform — Stall Detection (follow-up reminders)
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/ubuntu/rfq-platform
+ExecStart=/home/ubuntu/rfq-platform/deploy/lightsail/systemd/stall-detection.sh
+User=ubuntu
+StandardOutput=journal
+StandardError=journal
+
+# Timeout: if it takes more than 2 minutes, something is wrong
+TimeoutStartSec=120

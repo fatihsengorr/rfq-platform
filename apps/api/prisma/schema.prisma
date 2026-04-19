@@ -60,6 +60,7 @@ model User {
   notifications       Notification[]       @relation("notification_recipient")
   comments            Comment[]            @relation("comment_author")
   rfqRevisions        RfqRevision[]        @relation("rfq_revision_changed_by")
+  followUpsPerformed  FollowUpActivity[]   @relation("follow_up_performed_by")
 }
 
 model Rfq {
@@ -77,6 +78,12 @@ model Rfq {
   lostAt     DateTime?
   lostReason String?
 
+  // Faz 3 — Feature 3: Customer-activity tracking for stall detection.
+  // Set when the quote is approved (considered "sent to customer"), and
+  // refreshed every time someone logs a follow-up. Used by the daily
+  // stall-detection cron to find RFQs sitting silent too long.
+  lastCustomerActivityAt DateTime?
+
   createdById           String
   createdBy             User      @relation("rfq_created_by", fields: [createdById], references: [id])
   assignedPricingUserId String?
@@ -90,16 +97,36 @@ model Rfq {
   contactId String?
   contact   Contact?         @relation(fields: [contactId], references: [id])
 
-  attachments    Attachment[]
-  quoteRevisions QuoteRevision[]
-  notifications  Notification[]
-  comments       Comment[]
-  revisions      RfqRevision[]
+  attachments        Attachment[]
+  quoteRevisions     QuoteRevision[]
+  notifications      Notification[]
+  comments           Comment[]
+  revisions          RfqRevision[]
+  followUpActivities FollowUpActivity[]
 
   @@index([createdById])
   @@index([assignedPricingUserId])
   @@index([status])
   @@index([companyId])
+  // Faz 3 — Feature 3: Efficient stall-detection scans by
+  // (status, lastCustomerActivityAt) so the cron stays cheap as
+  // the RFQ table grows.
+  @@index([status, lastCustomerActivityAt])
+}
+
+// Faz 3 — Feature 3: Manual follow-up events that sales logs after
+// chasing the customer. Resets lastCustomerActivityAt and shows up
+// on the RFQ timeline.
+model FollowUpActivity {
+  id            String   @id @default(uuid())
+  rfqId         String
+  rfq           Rfq      @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  performedById String
+  performedBy   User     @relation("follow_up_performed_by", fields: [performedById], references: [id])
+  note          String?
+  performedAt   DateTime @default(now())
+
+  @@index([rfqId, performedAt])
 }
 
 // Faz 3 — Feature 2: Snapshot of an RFQ's editable fields at a point in time.

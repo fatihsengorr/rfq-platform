@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getRfqs, isApiClientError } from "../api";
 import { FlashNotice } from "../components/flash-notice";
 import { latestQuoteLabel, statusLabel, rfqStatuses, type RfqRecord, type RfqStatus } from "../data";
+import { computeStallLevel } from "@crm/shared";
 import { getSession, type SessionUser } from "../../lib/session";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,10 +56,29 @@ const statusOrder: Record<string, number> = {
   PENDING_MANAGER_APPROVAL: 3, REVISION_REQUESTED: 4, QUOTED: 5, CLOSED: 6,
 };
 
+/**
+ * Faz 3 — Feature 3: Stall indicator next to status on the list.
+ * Only shown for QUOTED RFQs that have been silent for 10+ days.
+ */
+function StallBadge({ rfq }: { rfq: RfqRecord }) {
+  const { level, daysSilent } = computeStallLevel(rfq.status, rfq.lastCustomerActivityAt);
+  if (level === "fresh" || daysSilent === null) return null;
+  const className =
+    level === "stale"
+      ? "bg-[#fdeaea] text-[#882f2f] border-[#ebb2b2]"
+      : "bg-[#fff1d7] text-[#855615] border-[#ebcc8f]";
+  const label = level === "stale" ? `🕸️ ${daysSilent}d silent` : `⏱️ ${daysSilent}d silent`;
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${className}`}>
+      {label}
+    </span>
+  );
+}
+
 export default async function RequestsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ focus?: string; q?: string; status?: string; assigned?: string; sort?: string }>;
+  searchParams: Promise<{ focus?: string; q?: string; status?: string; assigned?: string; sort?: string; stall?: string }>;
 }) {
   const session = await getSession();
 
@@ -86,6 +106,10 @@ export default async function RequestsPage({
   const statusFilter = rfqStatuses.includes(params.status as RfqStatus) ? (params.status as RfqStatus) : "";
   const assignedFilter = params.assigned ?? "";
   const sortParam = params.sort ?? "deadline";
+  // Faz 3 — Feature 3: "Follow-up needed" filter surfaces quotes that have
+  // gone silent for 10+ days so managers can act without digging through
+  // the whole list.
+  const stallFilter = params.stall === "needed" ? "needed" : "";
 
   let rows = [...rfqs];
 
@@ -115,6 +139,14 @@ export default async function RequestsPage({
     rows = rows.filter((item) => item.assignedPricingUserId === null);
   }
 
+  // Faz 3 — Feature 3: follow-up needed filter
+  if (stallFilter === "needed") {
+    rows = rows.filter((item) => {
+      const { level } = computeStallLevel(item.status, item.lastCustomerActivityAt);
+      return level === "warning" || level === "stale";
+    });
+  }
+
   // Sorting
   if (sortParam === "deadline") {
     rows.sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
@@ -124,7 +156,7 @@ export default async function RequestsPage({
     rows.sort((a, b) => (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99));
   }
 
-  const hasActiveFilters = !!(searchQuery || statusFilter || assignedFilter);
+  const hasActiveFilters = !!(searchQuery || statusFilter || assignedFilter || stallFilter);
 
   return (
     <main className="w-full max-w-[1180px] mx-auto px-4 py-6">
@@ -187,6 +219,17 @@ export default async function RequestsPage({
                   <option value="">All</option>
                   <option value="assigned">Assigned</option>
                   <option value="unassigned">Unassigned</option>
+                </select>
+              </div>
+              <div className="grid gap-1">
+                <Label className="text-xs">Follow-up</Label>
+                <select
+                  name="stall"
+                  defaultValue={stallFilter}
+                  className="h-9 rounded-lg border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="">All</option>
+                  <option value="needed">Follow-up needed</option>
                 </select>
               </div>
               <div className="grid gap-1">
@@ -280,7 +323,12 @@ export default async function RequestsPage({
                         {item.status !== "CLOSED" && <DeadlineBadge deadline={item.deadline} />}
                       </div>
                     </TableCell>
-                    <TableCell><StatusBadge status={item.status} /></TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        <StatusBadge status={item.status} />
+                        <StallBadge rfq={item} />
+                      </div>
+                    </TableCell>
                     <TableCell className="text-sm">{latestQuoteLabel(item)}</TableCell>
                   </TableRow>
                 ))}

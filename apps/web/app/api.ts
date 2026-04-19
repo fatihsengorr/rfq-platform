@@ -1,5 +1,5 @@
 import type { Attachment, RfqRecord } from "./data";
-import type { RevisionTimelineItem, RfqRevisionDiff } from "@crm/shared";
+import type { FollowUpActivityRecord, RevisionTimelineItem, RfqRevisionDiff } from "@crm/shared";
 import { getSession, type SessionUser } from "../lib/session";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
@@ -201,6 +201,16 @@ export async function compareRfqRevisions(
   b: number
 ): Promise<RfqRevisionDiff | null> {
   return request<RfqRevisionDiff>(`/api/rfqs/${rfqId}/revisions/compare?a=${a}&b=${b}`);
+}
+
+// Faz 3 — Feature 3: follow-up activity
+export async function getRfqFollowUps(rfqId: string): Promise<FollowUpActivityRecord[]> {
+  const result = await request<FollowUpActivityRecord[]>(`/api/rfqs/${rfqId}/follow-ups`);
+  return result ?? [];
+}
+
+export async function logRfqFollowUp(rfqId: string, note?: string): Promise<FollowUpActivityRecord> {
+  return postAuthenticated<FollowUpActivityRecord>(`/api/rfqs/${rfqId}/follow-ups`, note ? { note } : {});
 }
 
 export async function createRfq(input: {

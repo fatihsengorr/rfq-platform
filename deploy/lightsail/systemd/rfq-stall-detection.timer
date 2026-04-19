@@ -1,0 +1,13 @@
+[Unit]
+Description=Run RFQ stall detection daily at 09:00 UK time
+
+[Timer]
+# 09:00 UTC is 09:00 BST/GMT in the UK (close enough for a reminder).
+# Deadline reminder runs at 08:00, so we stagger stall detection one hour later
+# to avoid both hitting the API at the exact same moment.
+OnCalendar=*-*-* 09:00:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

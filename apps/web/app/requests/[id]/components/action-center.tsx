@@ -2,6 +2,8 @@
 
 import { useState, useActionState } from "react";
 import type { RfqRecord, QuoteRevision } from "../../../data";
+import type { FollowUpActivityRecord } from "@crm/shared";
+import { FollowUpSection } from "./follow-up-section";
 import { IDLE_RESULT } from "../../../../lib/action-result";
 import {
   reviseRequestAction,
@@ -24,12 +26,13 @@ import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { Paperclip, Receipt, Loader2, Trophy, XCircle, RotateCcw } from "lucide-react";
 import { PillTabList, PillTab } from "@/components/ui/pill-tabs";
 
-type ActionTab = "revise" | "upload" | "quote" | "assign" | "approval" | "outcome";
+type ActionTab = "revise" | "upload" | "quote" | "assign" | "approval" | "outcome" | "followup";
 
 type ActionCenterProps = {
   record: RfqRecord;
   pricingUsers: Array<{ id: string; fullName: string; email: string }>;
   availableActions: Array<{ key: ActionTab; label: string }>;
+  followUpActivities: FollowUpActivityRecord[];
 };
 
 const selectClasses = "h-10 w-full rounded-lg border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -63,7 +66,7 @@ function UploadProgress({ pending, label }: { pending: boolean; label: string })
   );
 }
 
-export function ActionCenter({ record, pricingUsers, availableActions }: ActionCenterProps) {
+export function ActionCenter({ record, pricingUsers, availableActions, followUpActivities }: ActionCenterProps) {
   const [activeAction, setActiveAction] = useState<ActionTab | null>(availableActions[0]?.key ?? null);
 
   const [reviseState, reviseAction, revisePending] = useActionState(reviseRequestAction, IDLE_RESULT);
@@ -250,6 +253,10 @@ export function ActionCenter({ record, pricingUsers, availableActions }: ActionC
               </form>
             )}
           </>
+        )}
+
+        {activeAction === "followup" && (
+          <FollowUpSection record={record} initialActivities={followUpActivities} />
         )}
 
         {activeAction === "outcome" && (

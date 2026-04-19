@@ -138,12 +138,42 @@ export type RfqRecord = {
   wonAt: string | null;
   lostAt: string | null;
   lostReason: string | null;
+  // Faz 3 — Feature 3: stall / follow-up tracking
+  lastCustomerActivityAt: string | null;
   company: CompanySummary | null;
   contact: ContactSummary | null;
   attachments: Attachment[];
   quoteRevisions: QuoteRevision[];
   approvals: Approval[];
 };
+
+// Faz 3 — Feature 3: A recorded follow-up attempt.
+export type FollowUpActivityRecord = {
+  id: string;
+  rfqId: string;
+  performedBy: string;
+  performedById: string;
+  note: string | null;
+  performedAt: string;
+};
+
+// Faz 3 — Feature 3: Derived stall indicator used by UI badges and filters.
+export type StallLevel = "fresh" | "warning" | "stale";
+
+export function computeStallLevel(
+  status: RfqStatus,
+  lastCustomerActivityAt: string | null
+): { level: StallLevel; daysSilent: number | null } {
+  if (status !== "QUOTED" || !lastCustomerActivityAt) {
+    return { level: "fresh", daysSilent: null };
+  }
+  const daysSilent = Math.floor(
+    (Date.now() - new Date(lastCustomerActivityAt).getTime()) / (24 * 60 * 60 * 1000)
+  );
+  if (daysSilent >= 60) return { level: "stale", daysSilent };
+  if (daysSilent >= 10) return { level: "warning", daysSilent };
+  return { level: "fresh", daysSilent };
+}
 
 // ── Action Result (for server actions) ─────────────────────────────
 export type ActionResult = {

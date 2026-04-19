@@ -7,6 +7,7 @@ import {
   createQuoteRevision,
   decideQuoteApproval,
   isApiClientError,
+  logRfqFollowUp,
   reviseRfqRequest,
   setRfqStatus,
 } from "../../api";
@@ -339,5 +340,31 @@ export async function reopenRfqAction(_prev: ActionResult, formData: FormData): 
     }
 
     return { status: "error", message: "Re-opening RFQ failed." };
+  }
+}
+
+/* ── Log Follow-up (Faz 3 Feature 3) ───────────────────── */
+
+export async function logFollowUpAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const rfqId = String(formData.get("rfqId") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim();
+
+  if (!rfqId) return { status: "error", message: "RFQ id is required." };
+
+  try {
+    await logRfqFollowUp(rfqId, note.length > 0 ? note : undefined);
+    revalidateRfq(rfqId);
+    return { status: "success", message: "Follow-up logged. Stall timer reset." };
+  } catch (error) {
+    handleAuthRedirect(error);
+    await handleRfqNotFound(error);
+
+    if (isApiClientError(error)) {
+      if (error.code === "FORBIDDEN") return { status: "error", message: "You don't have permission to log follow-ups." };
+      if (error.code === "INVALID_REQUEST") return { status: "error", message: "Follow-up input is invalid." };
+      if (error.code === "NETWORK_ERROR") return { status: "error", message: "API is unreachable. Please check backend status." };
+    }
+
+    return { status: "error", message: "Logging follow-up failed." };
   }
 }

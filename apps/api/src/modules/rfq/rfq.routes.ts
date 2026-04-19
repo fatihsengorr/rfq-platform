@@ -5,6 +5,7 @@ import { sendError, requireAuth } from "../../middleware.js";
 import { config } from "../../config.js";
 import { rfqStore } from "./rfq.store.js";
 import { listRevisions, compareRevisions } from "./revision.service.js";
+import { listFollowUps, recordFollowUp } from "./follow-up.service.js";
 import { downloadAttachmentFromStorage, uploadAttachmentToStorage, getPresignedUploadUrl, getPresignedDownloadUrl } from "./storage.js";
 import { type UserRole as RfqRole } from "./rfq.types.js";
 import { sendNotification } from "../email/email.service.js";
@@ -269,6 +270,69 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
     try {
       const diff = await compareRevisions(params.data.id, query.data.a, query.data.b);
       return reply.status(200).send(diff);
+    } catch (error) {
+      return sendError(reply, error);
+    }
+  });
+
+  // Faz 3 — Feature 3: Follow-up activity log
+  server.get("/:id/follow-ups", async (request, reply) => {
+    const session = await requireAuth(request, reply);
+    if (!session) return;
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ code: "INVALID_REQUEST", message: "Route parameter 'id' must be a valid UUID." });
+    }
+
+    const role = mapDbRoleToRfqRole(session.user.role);
+    const record = await rfqStore.getById(params.data.id, role, session.user.id);
+    if (!record) {
+      return reply.status(404).send({ code: "RFQ_NOT_FOUND", message: "RFQ record was not found." });
+    }
+
+    try {
+      const items = await listFollowUps(params.data.id);
+      return reply.status(200).send(items);
+    } catch (error) {
+      return sendError(reply, error);
+    }
+  });
+
+  server.post("/:id/follow-ups", async (request, reply) => {
+    const session = await requireAuth(request, reply);
+    if (!session) return;
+
+    const role = mapDbRoleToRfqRole(session.user.role);
+    // London sales is the primary follow-up driver, but the manager tier
+    // should also be able to log that they chased a customer personally.
+    if (!(role === "LONDON_SALES" || role === "ISTANBUL_MANAGER" || role === "ADMIN")) {
+      return reply.status(403).send({
+        code: "FORBIDDEN",
+        message: "Only London sales, Istanbul manager or admin can log follow-ups.",
+      });
+    }
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ code: "INVALID_REQUEST", message: "Route parameter 'id' must be a valid UUID." });
+    }
+
+    const bodySchema = z.object({
+      note: z.string().trim().max(500).optional(),
+    });
+    const parsed = bodySchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.status(400).send({
+        code: "INVALID_REQUEST",
+        message: "Request body validation failed.",
+        details: parsed.error.flatten(),
+      });
+    }
+
+    try {
+      const activity = await recordFollowUp(params.data.id, session.user.id, parsed.data.note);
+      return reply.status(201).send(activity);
     } catch (error) {
       return sendError(reply, error);
     }

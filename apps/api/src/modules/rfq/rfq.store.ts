@@ -134,6 +134,7 @@ function rfqToDto(item: RfqWithRelations, viewerRole: UserRole): RfqRecord {
     wonAt: item.wonAt ? item.wonAt.toISOString() : null,
     lostAt: item.lostAt ? item.lostAt.toISOString() : null,
     lostReason: item.lostReason ?? null,
+    lastCustomerActivityAt: item.lastCustomerActivityAt ? item.lastCustomerActivityAt.toISOString() : null,
     company: item.company
       ? { id: item.company.id, name: item.company.name, sector: item.company.sector, country: item.company.country, city: item.company.city }
       : null,
@@ -500,12 +501,18 @@ export class RfqStore {
       }
     });
 
+    // Faz 3 — Feature 3: When a quote is APPROVED, the RFQ moves to QUOTED,
+    // which is effectively "handed back to sales to present to the customer".
+    // Start the stall-detection clock here: any time we haven't heard from
+    // the customer is measured from this moment.
+    const nextStatus = input.decision === "APPROVED" ? "QUOTED" : "REVISION_REQUESTED";
     await prisma.rfq.update({
       where: {
         id: rfqId
       },
       data: {
-        status: input.decision === "APPROVED" ? "QUOTED" : "REVISION_REQUESTED"
+        status: nextStatus,
+        ...(input.decision === "APPROVED" ? { lastCustomerActivityAt: new Date() } : {})
       }
     });
 
