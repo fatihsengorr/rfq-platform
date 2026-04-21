@@ -6,6 +6,7 @@ coverage
 .env.*
 .pnpm-store
 *.tsbuildinfo
+.tsbuildcache/
 .turbo
 .DS_Store
 !.env.example

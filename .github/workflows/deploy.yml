@@ -49,6 +49,11 @@ jobs:
           script: |
             cd ~/rfq-platform
             git pull origin main
+            # BuildKit is required for --mount=type=cache in our Dockerfiles.
+            # Without it, the pnpm store and TS incremental caches are ignored
+            # and every build reinstalls everything from scratch.
+            export DOCKER_BUILDKIT=1
+            export COMPOSE_DOCKER_CLI_BUILD=1
             docker compose --env-file deploy/lightsail/.env.prod -f docker-compose.yml -f docker-compose.prod.yml build
             docker compose --env-file deploy/lightsail/.env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d
             docker compose --env-file deploy/lightsail/.env.prod -f docker-compose.yml -f docker-compose.prod.yml exec api sh -c "pnpm prisma migrate deploy" || true

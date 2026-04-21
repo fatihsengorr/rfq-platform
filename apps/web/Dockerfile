@@ -1,3 +1,6 @@
+# syntax=docker/dockerfile:1.7
+# ^ needed for BuildKit cache mounts (--mount=type=cache)
+
 # ── Stage 1: Install deps ──
 FROM node:22-alpine AS deps
 
@@ -12,7 +15,10 @@ COPY apps/web/package.json apps/web/package.json
 COPY apps/api/package.json apps/api/package.json
 COPY packages/shared/package.json packages/shared/package.json
 
-RUN pnpm install --frozen-lockfile
+# BuildKit cache mount — pnpm store persists across builds.
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm install --frozen-lockfile
 
 # ── Stage 2: Build ──
 FROM node:22-alpine AS builder
@@ -31,8 +37,12 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/shared/ ./packages/shared/
 COPY apps/web/ ./apps/web/
 
-RUN pnpm --filter @crm/shared build
-RUN pnpm --filter web build
+# Next.js build cache (.next/cache) + TS incremental — both significantly
+# cut build time on subsequent runs when only some files changed.
+RUN --mount=type=cache,id=next-cache,target=/app/apps/web/.next/cache \
+    --mount=type=cache,id=tsc-shared,target=/app/packages/shared/.tsbuildcache \
+    pnpm --filter @crm/shared build && \
+    pnpm --filter web build
 
 # ── Stage 3: Production ──
 FROM node:22-alpine AS runner

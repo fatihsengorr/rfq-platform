@@ -12,3 +12,7 @@ coverage
 apps/web/.next
 apps/api/dist
 deploy/lightsail/.env.prod
+# Faz 3: TS incremental cache is mounted as a BuildKit cache in Dockerfile,
+# never shipped as part of the build context.
+.tsbuildcache
+**/.tsbuildcache
