@@ -26,11 +26,12 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 COPY apps/api/ ./apps/api/
 COPY packages/shared/ ./packages/shared/
 
-# TypeScript incremental compile cache (tsconfig must have incremental:true
-# for this to take effect — it does in apps/api/tsconfig.json).
-RUN --mount=type=cache,id=tsc-shared,target=/app/packages/shared/.tsbuildcache \
-    --mount=type=cache,id=tsc-api,target=/app/apps/api/.tsbuildcache \
-    pnpm --filter @crm/shared build && \
+# NOTE: we intentionally do NOT mount .tsbuildcache as a BuildKit cache.
+# Combining `incremental: true` with a cache mount causes tsc to read an
+# old .tsbuildinfo, decide "already built", and skip emitting dist/ —
+# but the dist/ isn't in this layer, so downstream steps fail with
+# "Module not found: @crm/shared". Layer caching alone is enough here.
+RUN pnpm --filter @crm/shared build && \
     pnpm --filter api prisma generate && \
     pnpm --filter api build
 

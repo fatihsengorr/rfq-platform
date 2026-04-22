@@ -37,10 +37,14 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/shared/ ./packages/shared/
 COPY apps/web/ ./apps/web/
 
-# Next.js build cache (.next/cache) + TS incremental — both significantly
-# cut build time on subsequent runs when only some files changed.
+# NOTE: we intentionally do NOT mount .tsbuildcache as a BuildKit cache.
+# Combining `incremental: true` with a cache mount causes tsc to read an
+# old .tsbuildinfo, decide "already built", and skip emitting dist/ —
+# but the dist/ isn't in this layer, so Next.js then fails with
+# "Module not found: @crm/shared". Layer caching alone is enough.
+# .next/cache mount is safe because Next.js only reads cache data,
+# never skips emission based on it.
 RUN --mount=type=cache,id=next-cache,target=/app/apps/web/.next/cache \
-    --mount=type=cache,id=tsc-shared,target=/app/packages/shared/.tsbuildcache \
     pnpm --filter @crm/shared build && \
     pnpm --filter web build
 
