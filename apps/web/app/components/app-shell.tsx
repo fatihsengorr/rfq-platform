@@ -3,6 +3,7 @@ import Image from "next/image";
 import type { SessionUser } from "../../lib/session";
 import { LogoutButton } from "./logout-button";
 import { MobileSidebar } from "./mobile-sidebar";
+import { GlobalSearchTrigger } from "./global-search";
 import {
   LayoutDashboard,
   FileText,
@@ -11,6 +12,7 @@ import {
   Plus,
   ShieldCheck,
   Users,
+  Building2,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
@@ -36,6 +38,7 @@ const iconMap: Record<string, React.ReactNode> = {
   "/": <LayoutDashboard className="size-4" />,
   "/requests": <FileText className="size-4" />,
   "/quotes": <Receipt className="size-4" />,
+  "/companies": <Building2 className="size-4" />,
   "/account": <UserCog className="size-4" />,
   "/requests/new": <Plus className="size-4" />,
   "/requests?focus=approval": <ShieldCheck className="size-4" />,
@@ -47,6 +50,7 @@ function menuForRole(role: SessionUser["role"]) {
     { href: "/", label: "Dashboard" },
     { href: "/requests", label: "Requests" },
     { href: "/quotes", label: "Quotes" },
+    { href: "/companies", label: "Companies" },
     { href: "/account", label: "Account" },
   ];
 
@@ -134,7 +138,10 @@ export function AppShell({ user, children }: AppShellProps) {
               </p>
             </div>
           </div>
-          <LogoutButton />
+          <div className="flex items-center gap-2">
+            <GlobalSearchTrigger />
+            <LogoutButton />
+          </div>
         </header>
         <main className="flex-1 pb-8">{children}</main>
       </div>

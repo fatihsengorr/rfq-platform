@@ -251,6 +251,147 @@ export async function searchCompanies(query?: string): Promise<CompanyItem[]> {
   return (await request<CompanyItem[]>(`/api/companies${qs}`)) ?? [];
 }
 
+// Faz 3 — Feature 4: Company detail with KPI panel + filtered RFQ list.
+
+export type CompanyKpi = {
+  totalRfqs: number;
+  activeRfqs: number;
+  quotedRfqs: number;
+  wonRfqs: number;
+  lostRfqs: number;
+  closedRfqs: number;
+  winRate: number | null;
+  lifetimeQuoteValue: Array<{ currency: string; total: number }>;
+  avgResponseTimeDays: number | null;
+};
+
+export type CompanyDetail = {
+  id: string;
+  name: string;
+  sector: string | null;
+  country: string | null;
+  city: string | null;
+  website: string | null;
+  notes: string | null;
+  rfqCount: number;
+  contacts: CompanyContact[];
+  recentRfqs: Array<{
+    id: string;
+    projectName: string;
+    status: string;
+    createdAt: string;
+    deadline: string;
+  }>;
+  kpi: CompanyKpi;
+};
+
+export async function getCompanyById(companyId: string): Promise<CompanyDetail | null> {
+  return request<CompanyDetail>(`/api/companies/${companyId}`, { allowNotFound: true });
+}
+
+export type CompanyRfqListFilter = {
+  status?: "open" | "won" | "lost" | "closed" | "all";
+  from?: string; // ISO datetime
+  to?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  currency?: "GBP" | "EUR" | "USD" | "TRY";
+  page?: number;
+  limit?: number;
+};
+
+export type CompanyRfqRow = {
+  id: string;
+  projectName: string;
+  status: string;
+  createdAt: string;
+  deadline: string;
+  wonAt: string | null;
+  lostAt: string | null;
+  latestQuote: {
+    currency: string;
+    totalAmount: number;
+    versionNumber: number;
+    status: string;
+  } | null;
+};
+
+export async function getCompanyRfqs(
+  companyId: string,
+  filter: CompanyRfqListFilter = {},
+): Promise<{ data: CompanyRfqRow[]; total: number; page: number; limit: number }> {
+  const params = new URLSearchParams();
+  if (filter.status) params.set("status", filter.status);
+  if (filter.from) params.set("from", filter.from);
+  if (filter.to) params.set("to", filter.to);
+  if (filter.minAmount !== undefined) params.set("minAmount", String(filter.minAmount));
+  if (filter.maxAmount !== undefined) params.set("maxAmount", String(filter.maxAmount));
+  if (filter.currency) params.set("currency", filter.currency);
+  if (filter.page) params.set("page", String(filter.page));
+  if (filter.limit) params.set("limit", String(filter.limit));
+
+  const qs = params.toString();
+  const url = `/api/companies/${companyId}/rfqs${qs ? `?${qs}` : ""}`;
+  return (
+    (await request<{ data: CompanyRfqRow[]; total: number; page: number; limit: number }>(url)) ?? {
+      data: [],
+      total: 0,
+      page: 1,
+      limit: 25,
+    }
+  );
+}
+
+// ── Global search ───────────────────────────────────────────────────
+
+export type GlobalSearchInput = {
+  q?: string;
+  fields?: Array<"customer" | "project" | "location" | "amount">;
+  minAmount?: number;
+  maxAmount?: number;
+  currency?: "GBP" | "EUR" | "USD" | "TRY";
+  limit?: number;
+};
+
+export type GlobalSearchResults = {
+  companies: Array<{
+    id: string;
+    name: string;
+    sector: string | null;
+    country: string | null;
+    city: string | null;
+    rfqCount: number;
+  }>;
+  rfqs: Array<{
+    id: string;
+    projectName: string;
+    status: string;
+    createdAt: string;
+    companyId: string | null;
+    companyName: string | null;
+    latestQuote: { currency: string; totalAmount: number } | null;
+  }>;
+  totals: { companies: number; rfqs: number };
+};
+
+export async function globalSearch(input: GlobalSearchInput): Promise<GlobalSearchResults> {
+  const params = new URLSearchParams();
+  if (input.q) params.set("q", input.q);
+  if (input.fields && input.fields.length > 0) params.set("fields", input.fields.join(","));
+  if (input.minAmount !== undefined) params.set("minAmount", String(input.minAmount));
+  if (input.maxAmount !== undefined) params.set("maxAmount", String(input.maxAmount));
+  if (input.currency) params.set("currency", input.currency);
+  if (input.limit) params.set("limit", String(input.limit));
+
+  return (
+    (await request<GlobalSearchResults>(`/api/search?${params.toString()}`)) ?? {
+      companies: [],
+      rfqs: [],
+      totals: { companies: 0, rfqs: 0 },
+    }
+  );
+}
+
 export async function createCompany(input: {
   name: string;
   sector?: string;
