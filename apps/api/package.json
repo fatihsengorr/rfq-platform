@@ -19,6 +19,8 @@
     "@fastify/helmet": "^13.0.2",
     "@fastify/rate-limit": "^10.3.0",
     "@prisma/client": "6.19.2",
+    "@sentry/node": "^10.51.0",
+    "@sentry/profiling-node": "^10.51.0",
     "fastify": "^5.0.0",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^8.0.2",

@@ -65,6 +65,12 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-}
       CRON_SECRET: ${CRON_SECRET:-}
+      # Sentry / GlitchTip + Telegram alert pipeline
+      SENTRY_DSN: ${SENTRY_DSN_API:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      GLITCHTIP_WEBHOOK_SECRET: ${GLITCHTIP_WEBHOOK_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -82,6 +88,11 @@ services:
       API_BASE_URL: http://api:4000
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change-me-in-production}
+      # Sentry / GlitchTip — server runtime uses SENTRY_DSN, browser uses NEXT_PUBLIC_SENTRY_DSN.
+      # NEXT_PUBLIC_* must also be present at build time, see docker-compose.prod.yml build args.
+      SENTRY_DSN: ${SENTRY_DSN_WEB:-}
+      NEXT_PUBLIC_SENTRY_DSN: ${SENTRY_DSN_WEB:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
     depends_on:
       - api
 

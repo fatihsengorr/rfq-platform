@@ -17,6 +17,7 @@ B2B RFQ (Request for Quote) management platform for Gorhan Ltd. Manages the full
 | Storage | S3-compatible (MinIO local, AWS S3 prod) via @aws-sdk/client-s3 |
 | Email | Nodemailer via AWS SES |
 | Logging | Pino (structured JSON) |
+| Error tracking | GlitchTip (Sentry-compatible) → Telegram bot for alerts |
 | Deploy | Docker Compose on AWS Lightsail, Caddy reverse proxy, systemd timers |
 
 ## Monorepo Structure

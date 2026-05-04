@@ -1,3 +1,9 @@
+// Sentry MUST be initialised before any other code so it can capture
+// errors from module initialisation, uncaught exceptions, and unhandled
+// promise rejections. Don't reorder.
+import { initSentry } from "./sentry.js";
+initSentry();
+
 import { config } from "./config.js";
 import { buildServer } from "./server.js";
 

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -26,4 +27,10 @@ const nextConfig: NextConfig = {
   }
 };
 
-export default nextConfig;
+// Wrap with Sentry/GlitchTip — only enabled when SENTRY_DSN is set, so
+// local dev / tests still work without a DSN. Source-map upload is
+// implicitly skipped because we don't set SENTRY_AUTH_TOKEN (GlitchTip
+// works fine without uploaded maps).
+export default withSentryConfig(nextConfig, {
+  silent: true,
+});

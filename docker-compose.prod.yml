@@ -28,6 +28,9 @@ services:
       API_BASE_URL: http://api:4000
       NEXTAUTH_URL: ${APP_WEB_BASE_URL}
       NEXTAUTH_SECRET: ${AUTH_JWT_SECRET}
+      # Server-side error capture — runtime env var, picked up by sentry.server.config.ts
+      SENTRY_DSN: ${SENTRY_DSN_WEB:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
 
   api:
     build:

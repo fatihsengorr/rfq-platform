@@ -66,6 +66,24 @@ export const config = {
   // Cron / scheduled tasks
   cronSecret: optional("CRON_SECRET", ""),
 
+  // Sentry / GlitchTip error tracking
+  sentry: {
+    dsn: optional("SENTRY_DSN", ""),
+    environment: optional("SENTRY_ENVIRONMENT", isProd ? "production" : "development"),
+    release: optional("SENTRY_RELEASE", "rfq-api@" + (process.env.GIT_SHA ?? "dev")),
+  },
+
+  // Telegram bot — receives GlitchTip alert webhooks and forwards to user
+  telegram: {
+    botToken: optional("TELEGRAM_BOT_TOKEN", ""),
+    chatId: optional("TELEGRAM_CHAT_ID", ""),
+    // Shared secret in the GlitchTip webhook URL; rejects unknown callers
+    webhookSecret: optional("GLITCHTIP_WEBHOOK_SECRET", ""),
+    get enabled() {
+      return !!this.botToken && !!this.chatId;
+    },
+  },
+
   // Bootstrap admin (first-run only)
   bootstrap: {
     email: process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase(),
