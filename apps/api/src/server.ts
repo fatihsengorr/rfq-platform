@@ -16,9 +16,35 @@ import { isApiError } from "./errors.js";
 import { logger } from "./logger.js";
 import { prisma } from "./prisma.js";
 
+// Strip sensitive query-string params from any URL we log. Without this,
+// Fastify's default request logger emits the raw URL — including things
+// like `?token=...` from the GlitchTip webhook — into the logs and any
+// downstream log aggregator. Add new keys here as new sensitive query
+// params appear.
+const SENSITIVE_QUERY_KEYS = ["token", "access_token", "api_key"];
+export function redactUrl(url: string | undefined): string {
+  if (!url) return "";
+  const re = new RegExp(`([?&](?:${SENSITIVE_QUERY_KEYS.join("|")})=)[^&#]+`, "gi");
+  return url.replace(re, "$1[redacted]");
+}
+
 export function buildServer() {
   const server = Fastify({
-    logger: true,
+    logger: {
+      // Keep Fastify's default request/response logging shape, but sanitize
+      // the URL before it lands in any log line.
+      serializers: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        req(req: any) {
+          return {
+            method: req.method,
+            url: redactUrl(req.url),
+            hostname: req.hostname,
+            remoteAddress: req.ip ?? req.remoteAddress,
+          };
+        },
+      },
+    },
     bodyLimit: 80 * 1024 * 1024
   });
 

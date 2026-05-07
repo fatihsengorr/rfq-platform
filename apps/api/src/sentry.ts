@@ -40,6 +40,21 @@ export function initSentry(): void {
         delete event.request.headers["cookie"];
         delete event.request.headers["x-cron-secret"];
       }
+      // Also strip token-like query params from the request URL, e.g.
+      // /api/notifications/glitchtip?token=... should never appear in
+      // an error payload at GlitchTip.
+      if (event.request?.url) {
+        event.request.url = event.request.url.replace(
+          /([?&](?:token|access_token|api_key)=)[^&#]+/gi,
+          "$1[redacted]",
+        );
+      }
+      if (event.request?.query_string && typeof event.request.query_string === "string") {
+        event.request.query_string = event.request.query_string.replace(
+          /((?:^|&)(?:token|access_token|api_key)=)[^&]+/gi,
+          "$1[redacted]",
+        );
+      }
       return event;
     },
   });
