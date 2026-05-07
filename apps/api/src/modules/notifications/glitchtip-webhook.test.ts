@@ -60,6 +60,52 @@ describe("formatGlitchTipMessage", () => {
     expect(msg).toContain("Unknown payload format");
   });
 
+  // GlitchTip's Project → Alerts UI emits the Sentry classic "Alert Rule"
+  // shape: flat fields at the root (no data.issue wrapper). Real-world
+  // payload from a production webhook.
+  it("formats Sentry classic Alert Rule shape (flat root fields)", () => {
+    const msg = formatGlitchTipMessage({
+      id: "12345",
+      project: "rfq-api",
+      project_name: "rfq-api",
+      project_slug: "rfq-api",
+      level: "error",
+      culprit: "rfqStore.getById",
+      message: "Faz 5 E2E test - alert rule webhook",
+      url: "https://app.glitchtip.com/rfq-api/issues/12345",
+      triggering_rules: ["My alert"],
+      event: { event_id: "abc123", level: "error" },
+    });
+    expect(msg).toContain("ERROR");
+    expect(msg).toContain("rfq-api");
+    expect(msg).toContain("Faz 5 E2E test - alert rule webhook");
+    expect(msg).toContain("rfqStore.getById");
+    expect(msg).toContain("12345");
+    expect(msg).toContain("https://app.glitchtip.com/rfq-api/issues/12345");
+    expect(msg).not.toContain("Unknown payload format");
+  });
+
+  it("derives level from nested event when root has no level (classic shape)", () => {
+    const msg = formatGlitchTipMessage({
+      id: "1",
+      project: "rfq-web",
+      message: "boom",
+      event: { event_id: "x", level: "warning" },
+    });
+    expect(msg).toContain("WARNING");
+    expect(msg).toContain("⚠️");
+  });
+
+  it("falls back to error level when nothing specifies it", () => {
+    const msg = formatGlitchTipMessage({
+      id: "1",
+      project: "p",
+      message: "boom",
+    });
+    expect(msg).toContain("ERROR");
+    expect(msg).toContain("❌");
+  });
+
   it("picks an appropriate icon by level", () => {
     expect(formatGlitchTipMessage({ data: { issue: { title: "x", level: "warning", project: "p" } } })).toContain("⚠️");
     expect(formatGlitchTipMessage({ data: { issue: { title: "x", level: "fatal", project: "p" } } })).toContain("🚨");

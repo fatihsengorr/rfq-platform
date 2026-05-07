@@ -40,6 +40,16 @@ export const registerNotificationRoutes: FastifyPluginAsync = async (server) => 
     const payload = request.body as GlitchTipPayload;
     const text = formatGlitchTipMessage(payload);
 
+    // If the formatter falls back to "Unknown payload format", log the
+    // top-level keys of the payload (NOT the values — those may include
+    // user data) so we can extend the parser. Past surprise: GlitchTip
+    // ships the classic Sentry Alert Rule shape, not the integration
+    // shape, depending on which alert UI was used.
+    if (text.includes("Unknown payload format")) {
+      const keys = Object.keys((payload as Record<string, unknown>) ?? {});
+      logger.warn({ payloadKeys: keys }, "GlitchTip webhook payload not recognised");
+    }
+
     const result = await sendTelegramMessage(text);
     if (!result.ok) {
       logger.error({ err: result.error }, "Failed to forward GlitchTip alert to Telegram");
