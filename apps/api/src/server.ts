@@ -11,6 +11,7 @@ import { registerCompanyRoutes } from "./modules/company/company.routes.js";
 import { registerSearchRoutes } from "./modules/search/search.routes.js";
 import { registerCronRoutes } from "./modules/cron/cron.routes.js";
 import { registerNotificationRoutes } from "./modules/notifications/notifications.routes.js";
+import { alertError } from "./modules/notifications/error-alert.service.js";
 import { captureException } from "./sentry.js";
 import { isApiError } from "./errors.js";
 import { logger } from "./logger.js";
@@ -86,8 +87,9 @@ export function buildServer() {
     const fastifyError = error as { statusCode?: number; message?: string };
     const status = fastifyError.statusCode ?? 500;
     if (status >= 500 && !isApiError(error)) {
+      const route = (request as { routeOptions?: { url?: string } }).routeOptions?.url ?? request.url;
       captureException(error, {
-        tags: { route: (request as { routeOptions?: { url?: string } }).routeOptions?.url ?? request.url },
+        tags: { route },
         extra: {
           method: request.method,
           path: request.url,
@@ -95,6 +97,16 @@ export function buildServer() {
         },
       });
       logger.error({ err: error, method: request.method, path: request.url }, "Unhandled error");
+      // Direct Telegram alert (bypasses GlitchTip's unreliable alert-rule
+      // webhook). Fire-and-forget, rate-limited per error fingerprint.
+      alertError({
+        status,
+        route,
+        method: request.method,
+        errorName: (error as Error).name || "Error",
+        message: (error as Error).message || "(no message)",
+        requestId: String(request.id),
+      });
     }
     reply.status(status).send({
       code: "INTERNAL_ERROR",
