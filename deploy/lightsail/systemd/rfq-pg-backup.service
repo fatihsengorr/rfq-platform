@@ -1,0 +1,16 @@
+[Unit]
+Description=RFQ Platform — PostgreSQL daily backup to S3
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/ubuntu/rfq-platform
+ExecStart=/home/ubuntu/rfq-platform/deploy/lightsail/systemd/pg-backup.sh
+User=ubuntu
+StandardOutput=journal
+StandardError=journal
+
+# Dump + upload of a small DB should finish well within this; if it hangs
+# (e.g. network), fail rather than block.
+TimeoutStartSec=600

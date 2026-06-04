@@ -1,0 +1,10 @@
+[Unit]
+Description=Run RFQ PostgreSQL backup daily at 02:00 UTC
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
