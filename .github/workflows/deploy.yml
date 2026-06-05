@@ -86,7 +86,8 @@ jobs:
 
   deploy:
     name: Deploy to Lightsail
-    needs: build-and-test
+    # Wait for images to be in GHCR before the server tries to pull them.
+    needs: build-and-push-images
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
@@ -94,19 +95,21 @@ jobs:
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_TAG: ${{ github.sha }}
         with:
           host: ${{ secrets.LIGHTSAIL_HOST }}
           username: ${{ secrets.LIGHTSAIL_USER }}
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          # Forward IMAGE_TAG to the remote shell so compose pins this commit.
+          envs: IMAGE_TAG
           script: |
             cd ~/rfq-platform
             git pull origin main
-            # BuildKit is required for --mount=type=cache in our Dockerfiles.
-            # Without it, the pnpm store and TS incremental caches are ignored
-            # and every build reinstalls everything from scratch.
-            export DOCKER_BUILDKIT=1
-            export COMPOSE_DOCKER_CLI_BUILD=1
-            docker compose --env-file deploy/lightsail/.env.prod -f docker-compose.yml -f docker-compose.prod.yml build
+            export IMAGE_TAG="${IMAGE_TAG}"
+            # Pull pre-built images from GHCR (no build on the box). The api
+            # container runs `prisma migrate deploy` on startup via its compose
+            # command, so migrations apply automatically when it comes up.
+            docker compose --env-file deploy/lightsail/.env.prod -f docker-compose.yml -f docker-compose.prod.yml pull api web
             docker compose --env-file deploy/lightsail/.env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d
-            docker compose --env-file deploy/lightsail/.env.prod -f docker-compose.yml -f docker-compose.prod.yml exec api sh -c "pnpm prisma migrate deploy" || true
             docker image prune -f

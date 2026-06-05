@@ -17,9 +17,10 @@ services:
       - caddy_config:/config
 
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
+    # Registry migration: prod pulls a pre-built image from GHCR instead of
+    # building on the box. IMAGE_TAG is the commit SHA passed by the deploy
+    # job; falls back to :latest for manual runs.
+    image: ghcr.io/fatihsengorr/rfq-platform-web:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       - api
@@ -33,9 +34,7 @@ services:
       SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
 
   api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+    image: ghcr.io/fatihsengorr/rfq-platform-api:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       postgres:
