@@ -84,16 +84,44 @@ jobs:
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
 
-  deploy:
-    name: Deploy to Lightsail
-    # Wait for images to be in GHCR before the server tries to pull them.
+  # Auto-deploy to STAGING first. Same SHA-tagged image that will go to
+  # prod, so staging is a true rehearsal. Staging has its own .env.prod
+  # (staging domains/secrets, bundled MinIO) — gitignored, untouched by
+  # the git pull here.
+  deploy-staging:
+    name: Deploy to Staging
     needs: build-and-push-images
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v4
+      - name: Deploy via SSH (staging)
+        uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USER }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          envs: IMAGE_TAG
+          script: |
+            cd ~/rfq-platform
+            git pull origin main
+            export IMAGE_TAG="${IMAGE_TAG}"
+            docker compose --env-file deploy/lightsail/.env.prod -f docker-compose.yml -f docker-compose.prod.yml pull api web
+            docker compose --env-file deploy/lightsail/.env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d
+            docker image prune -f
 
-      - name: Deploy via SSH
+  # Deploy to PRODUCTION only after staging succeeds AND a human approves.
+  # The `environment: production` gate (configured in repo Settings →
+  # Environments with a required reviewer) pauses here until approved.
+  deploy-production:
+    name: Deploy to Production
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - name: Deploy via SSH (production)
         uses: appleboy/ssh-action@v1
         env:
           IMAGE_TAG: ${{ github.sha }}
@@ -101,7 +129,6 @@ jobs:
           host: ${{ secrets.LIGHTSAIL_HOST }}
           username: ${{ secrets.LIGHTSAIL_USER }}
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
-          # Forward IMAGE_TAG to the remote shell so compose pins this commit.
           envs: IMAGE_TAG
           script: |
             cd ~/rfq-platform
