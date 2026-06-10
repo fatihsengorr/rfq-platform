@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MessageCircle, Send, Loader2, User } from "lucide-react";
 import type { CommentItem } from "../../../api";
-import { addComment, getComments } from "../../../api";
+// Server-action wrappers — calling app/api.ts directly from this client
+// component crashes with "headers was called outside a request scope".
+import { fetchComments, submitComment } from "../comment-actions";
 
 type CommentSectionProps = {
   rfqId: string;
@@ -72,6 +74,7 @@ export function CommentSection({ rfqId, currentUserId, initialComments }: Commen
   const [body, setBody] = useState("");
   const [, startTransition] = useTransition();
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -87,10 +90,10 @@ export function CommentSection({ rfqId, currentUserId, initialComments }: Commen
     const interval = setInterval(() => {
       startTransition(async () => {
         try {
-          const fresh = await getComments(rfqId);
+          const fresh = await fetchComments(rfqId);
           setComments(fresh);
         } catch {
-          // silently ignore
+          // Polling failure is non-fatal — next tick retries.
         }
       });
     }, 15000);
@@ -103,13 +106,15 @@ export function CommentSection({ rfqId, currentUserId, initialComments }: Commen
     if (!text || sending) return;
 
     setSending(true);
+    setSendError(null);
     try {
-      const newComment = await addComment(rfqId, text);
+      const newComment = await submitComment(rfqId, text);
       setComments((prev) => [...prev, newComment]);
       setBody("");
       inputRef.current?.focus();
     } catch {
-      // Could show error
+      // Keep the typed message so the user can retry without retyping.
+      setSendError("Message failed to send. Please try again.");
     } finally {
       setSending(false);
     }
@@ -170,6 +175,9 @@ export function CommentSection({ rfqId, currentUserId, initialComments }: Commen
             {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </Button>
         </form>
+        {sendError && (
+          <p role="alert" className="text-[11px] text-danger mt-1 text-center">{sendError}</p>
+        )}
         <p className="text-[10px] text-muted-foreground mt-1 text-center">Enter to send · Shift+Enter for new line</p>
       </CardContent>
     </Card>

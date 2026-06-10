@@ -234,6 +234,11 @@ export class RfqStore {
       requestedBy: string;
       changeReason: string;
       changedById: string;
+      // Optional re-link to a different company/contact. `undefined` means
+      // "leave unchanged" (the revise form doesn't always send these);
+      // an explicit value re-points the RFQ.
+      companyId?: string;
+      contactId?: string;
     }
   ): Promise<RfqRecord> {
     if (!input.changeReason || input.changeReason.trim().length < 10) {
@@ -294,6 +299,11 @@ export class RfqStore {
           projectDetails: input.projectDetails,
           requestedBy: input.requestedBy,
           status: "REVISION_REQUESTED",
+          // Only re-point company/contact when explicitly provided —
+          // spreading conditionally avoids nulling them out on the common
+          // revise path where the form doesn't include these fields.
+          ...(input.companyId !== undefined ? { companyId: input.companyId } : {}),
+          ...(input.contactId !== undefined ? { contactId: input.contactId } : {}),
         },
       }),
     ]);

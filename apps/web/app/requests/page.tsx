@@ -51,9 +51,11 @@ function roleSummary(role: SessionUser["role"]) {
   return "See every request and manage cross-team workflow.";
 }
 
+// Active statuses sort first (workflow order), resolved outcomes last.
 const statusOrder: Record<string, number> = {
   NEW: 0, IN_REVIEW: 1, PRICING_IN_PROGRESS: 2,
-  PENDING_MANAGER_APPROVAL: 3, REVISION_REQUESTED: 4, QUOTED: 5, CLOSED: 6,
+  PENDING_MANAGER_APPROVAL: 3, REVISION_REQUESTED: 4, QUOTED: 5,
+  WON: 6, LOST: 7, CLOSED: 8,
 };
 
 /**

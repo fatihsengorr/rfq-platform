@@ -161,7 +161,9 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
 
     const role = mapDbRoleToRfqRole(session.user.role);
     const query = paginationSchema.safeParse(request.query);
-    const pagination = query.success ? query.data : { page: 1, limit: 200 };
+    // Malformed pagination params fall back to the schema defaults rather
+    // than a 200-row limit that would bypass the documented max of 100.
+    const pagination = query.success ? query.data : { page: 1, limit: 20 };
     const result = await rfqStore.list(role, session.user.id, pagination);
     reply.header("X-Total-Count", result.total);
     return result.data;
