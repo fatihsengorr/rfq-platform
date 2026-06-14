@@ -22,9 +22,13 @@ import Link from "next/link";
 
 type CreateRfqFormProps = {
   requestedBy: string;
+  // CRM (Faz A): when creating an RFQ from a Project, prefill + link it back.
+  projectId?: string;
+  defaultProjectName?: string;
+  defaultProjectDetails?: string;
 };
 
-export function CreateRfqForm({ requestedBy }: CreateRfqFormProps) {
+export function CreateRfqForm({ requestedBy, projectId, defaultProjectName, defaultProjectDetails }: CreateRfqFormProps) {
   const [state, formAction, pending] = useActionState(createRfqAction, IDLE_RESULT);
   const [selectedCompany, setSelectedCompany] = useState<CompanyOption | null>(null);
   const [selectedContact, setSelectedContact] = useState<ContactOption | null>(null);
@@ -55,6 +59,7 @@ export function CreateRfqForm({ requestedBy }: CreateRfqFormProps) {
         <FormMessage state={state} />
 
         <form action={formAction} className="grid sm:grid-cols-2 gap-4">
+          {projectId && <input type="hidden" name="projectId" value={projectId} />}
           {/* Company selector — full width */}
           <div className="sm:col-span-2">
             <CompanyCombobox
@@ -73,7 +78,7 @@ export function CreateRfqForm({ requestedBy }: CreateRfqFormProps) {
 
           <div className="grid gap-2">
             <Label htmlFor="projectName">Project Name</Label>
-            <Input id="projectName" name="projectName" type="text" required minLength={2} />
+            <Input id="projectName" name="projectName" type="text" required minLength={2} defaultValue={defaultProjectName} />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="deadline">Deadline</Label>
@@ -87,6 +92,7 @@ export function CreateRfqForm({ requestedBy }: CreateRfqFormProps) {
               required
               minLength={10}
               rows={4}
+              defaultValue={defaultProjectDetails}
               placeholder="Describe the project requirements..."
             />
           </div>

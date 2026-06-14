@@ -37,6 +37,7 @@ export async function createRfqAction(_prev: ActionResult, formData: FormData): 
   // Company & contact from form (set by CompanyCombobox hidden inputs)
   const companyId = (formData.get("companyId") as string)?.trim() || undefined;
   const contactId = (formData.get("contactId") as string)?.trim() || undefined;
+  const projectId = (formData.get("projectId") as string)?.trim() || undefined;
   const requestedBy = (formData.get("requestedBy") as string)?.trim() || session.user.fullName.trim();
 
   if (!projectName || !requestedBy || !deadlineRaw || !projectDetails) {
@@ -60,6 +61,7 @@ export async function createRfqAction(_prev: ActionResult, formData: FormData): 
       projectDetails,
       companyId,
       contactId,
+      projectId,
     });
 
     let fileMessage = "";
@@ -81,6 +83,10 @@ export async function createRfqAction(_prev: ActionResult, formData: FormData): 
     revalidatePath("/");
     revalidatePath("/requests");
     revalidatePath(`/requests/${created.id}`);
+    if (projectId) {
+      revalidatePath("/projects");
+      revalidatePath(`/projects/${projectId}`);
+    }
 
     return {
       status: "success",
