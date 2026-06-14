@@ -207,6 +207,8 @@ export class RfqStore {
     createdById: string;
     companyId?: string;
     contactId?: string;
+    // CRM (Faz A): optional link to a Project this RFQ belongs to.
+    projectId?: string;
   }): Promise<RfqRecord> {
     const row = await prisma.rfq.create({
       data: {
@@ -217,6 +219,7 @@ export class RfqStore {
         createdById: input.createdById,
         companyId: input.companyId ?? null,
         contactId: input.contactId ?? null,
+        projectId: input.projectId ?? null,
         status: DbRfqStatus.NEW
       },
       include: rfqInclude
