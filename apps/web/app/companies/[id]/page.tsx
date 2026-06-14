@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, ExternalLink, Mail, Phone, Briefcase, MapPin } from "lucide-react";
+import { ArrowLeft, ExternalLink, Mail, Phone, Briefcase, MapPin, Tag } from "lucide-react";
 import { getSession } from "../../../lib/session";
 import { getCompanyById, getCompanyRfqs, isApiClientError } from "../../api";
+import { COMPANY_ROLE_LABELS } from "@crm/shared";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { KpiCards } from "./kpi-cards";
 import { RfqsList } from "./rfqs-list";
+import { CompanyEditDialog } from "./company-edit-dialog";
+import { StageBadge } from "../../projects/stage-badge";
 
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{
@@ -28,6 +31,8 @@ export default async function CompanyDetailPage({
 }) {
   const session = await getSession();
   if (!session.accessToken || !session.user) redirect("/login");
+
+  const canEditCompany = session.user.role === "LONDON_SALES" || session.user.role === "ADMIN";
 
   const { id } = await params;
   const sp = await searchParams;
@@ -86,30 +91,44 @@ export default async function CompanyDetailPage({
       </Link>
 
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold">{company.name}</h1>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mt-1">
-          {company.sector && (
-            <span className="inline-flex items-center gap-1">
-              <Briefcase className="size-3" /> {company.sector}
-            </span>
-          )}
-          {(company.city || company.country) && (
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="size-3" /> {[company.city, company.country].filter(Boolean).join(", ")}
-            </span>
-          )}
-          {company.website && (
-            <a
-              href={company.website.startsWith("http") ? company.website : `https://${company.website}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 hover:text-primary"
-            >
-              <ExternalLink className="size-3" /> {company.website}
-            </a>
-          )}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold">{company.name}</h1>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mt-1">
+            {company.category && (
+              <span className="inline-flex items-center gap-1">
+                <Tag className="size-3" /> {COMPANY_ROLE_LABELS[company.category]}
+              </span>
+            )}
+            {company.sector && (
+              <span className="inline-flex items-center gap-1">
+                <Briefcase className="size-3" /> {company.sector}
+              </span>
+            )}
+            {(company.addressLine || company.city || company.postcode || company.country) && (
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="size-3" />{" "}
+                {[company.addressLine, company.city, company.postcode, company.country].filter(Boolean).join(", ")}
+              </span>
+            )}
+            {company.phone && (
+              <span className="inline-flex items-center gap-1">
+                <Phone className="size-3" /> {company.phone}
+              </span>
+            )}
+            {company.website && (
+              <a
+                href={company.website.startsWith("http") ? company.website : `https://${company.website}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 hover:text-primary"
+              >
+                <ExternalLink className="size-3" /> {company.website}
+              </a>
+            )}
+          </div>
         </div>
+        {canEditCompany && <CompanyEditDialog company={company} />}
       </div>
 
       {/* KPI cards */}
@@ -128,6 +147,30 @@ export default async function CompanyDetailPage({
         </div>
 
         <div className="space-y-3">
+          {/* Projects (CRM — Faz A) */}
+          {canEditCompany && (
+            <Card className="p-4">
+              <h3 className="font-bold text-sm mb-3">Projects ({company.projects.length})</h3>
+              {company.projects.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Not linked to any project yet.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {company.projects.map((p) => (
+                    <li key={p.linkId} className="border-l-2 border-primary/30 pl-3">
+                      <Link href={`/projects/${p.projectId}`} className="font-semibold text-sm hover:text-primary block truncate">
+                        {p.title}
+                      </Link>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <StageBadge stage={p.stage} />
+                        <span className="text-xs text-muted-foreground">{COMPANY_ROLE_LABELS[p.role]}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          )}
+
           {/* Contacts */}
           <Card className="p-4">
             <h3 className="font-bold text-sm mb-3">Contacts ({company.contacts.length})</h3>
