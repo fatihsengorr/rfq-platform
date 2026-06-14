@@ -38,6 +38,57 @@ enum ApprovalDecision {
   REJECTED
 }
 
+// ── CRM (Faz A) ────────────────────────────────────────────────────
+enum ProjectStage {
+  IDENTIFIED // ham/dış-kaynak triyaj kutusu
+  CONTACTED
+  ENGAGED
+  TENDER // RFQ'ya döndü, fiyat veriliyor
+  WON
+  LOST
+}
+
+enum ProjectSource {
+  MANUAL
+  BARBOUR
+  REFERRAL
+  REPEAT_CLIENT
+  OTHER
+}
+
+enum ProjectCategory {
+  JOINERY
+  FFE
+  FIT_OUT
+  KITCHEN
+  BAR_RESTAURANT
+  RECEPTION
+  BEDROOM_CASEGOODS
+  RETAIL
+  OTHER
+}
+
+// Bir firmanın projedeki rolü (ve varsayılan firma kategorisi)
+enum CompanyRole {
+  CLIENT_EMPLOYER
+  MAIN_CONTRACTOR
+  ARCHITECT
+  QS_COST_CONSULTANT
+  INTERIOR_DESIGNER
+  SUBCONTRACTOR
+  DEVELOPER
+  OTHER
+}
+
+enum LossReason {
+  PRICE
+  TIMELINE
+  LOST_TO_COMPETITOR
+  CANCELLED
+  NO_BUDGET
+  OTHER
+}
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -52,7 +103,6 @@ model User {
   quoteRevisions      QuoteRevision[]      @relation("quote_created_by")
   approvals           QuoteApproval[]      @relation("approval_decided_by")
   attachmentUploads   Attachment[]         @relation("attachment_uploaded_by")
-  leadOwners          Lead[]               @relation("lead_owner")
   rfqsAssignedPricing Rfq[]                @relation("rfq_assigned_pricing_user")
   rfqsAssignedBy      Rfq[]                @relation("rfq_assigned_by_user")
   passwordResetTokens PasswordResetToken[]
@@ -61,6 +111,8 @@ model User {
   comments            Comment[]            @relation("comment_author")
   rfqRevisions        RfqRevision[]        @relation("rfq_revision_changed_by")
   followUpsPerformed  FollowUpActivity[]   @relation("follow_up_performed_by")
+  // CRM (Faz A)
+  projectsOwned       Project[]            @relation("project_owner")
 }
 
 model Rfq {
@@ -97,6 +149,10 @@ model Rfq {
   contactId String?
   contact   Contact?         @relation(fields: [contactId], references: [id])
 
+  // CRM (Faz A): hangi projeye ait (1 proje → çok RFQ)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+
   attachments        Attachment[]
   quoteRevisions     QuoteRevision[]
   notifications      Notification[]
@@ -108,6 +164,7 @@ model Rfq {
   @@index([assignedPricingUserId])
   @@index([status])
   @@index([companyId])
+  @@index([projectId])
   // Faz 3 — Feature 3: Efficient stall-detection scans by
   // (status, lastCustomerActivityAt) so the cron stays cheap as
   // the RFQ table grows.
@@ -228,28 +285,43 @@ model Attachment {
   rfqRevisionId String?
   rfqRevision   RfqRevision? @relation(fields: [rfqRevisionId], references: [id])
 
+  // CRM (Faz A): project-level (tender/drawing/site photo, pre-RFQ) or
+  // company-level (contract, profile) files.
+  projectId String?
+  project   Project?         @relation(fields: [projectId], references: [id])
+  companyId String?
+  company   CustomerCompany? @relation(fields: [companyId], references: [id])
+
   uploadedById String
   uploadedBy   User   @relation("attachment_uploaded_by", fields: [uploadedById], references: [id])
 
   @@index([rfqId])
+  @@index([projectId])
+  @@index([companyId])
   @@index([quoteRevisionId])
   @@index([rfqRevisionId])
 }
 
 model CustomerCompany {
-  id        String   @id @default(uuid())
-  name      String
-  sector    String?
-  country   String?
-  city      String?
-  website   String?
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String       @id @default(uuid())
+  name        String
+  sector      String?
+  country     String?
+  city        String?
+  website     String?
+  notes       String?
+  // CRM (Faz A): default classification (per-project role lives on ProjectCompany)
+  category    CompanyRole?
+  addressLine String?
+  postcode    String?
+  phone       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  contacts Contact[]
-  leads    Lead[]
-  rfqs     Rfq[]
+  contacts     Contact[]
+  rfqs         Rfq[]
+  projectRoles ProjectCompany[]
+  attachments  Attachment[]
 }
 
 model Contact {
@@ -261,31 +333,99 @@ model Contact {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  companyId String
-  company   CustomerCompany @relation(fields: [companyId], references: [id])
-  rfqs      Rfq[]
+  companyId    String
+  company      CustomerCompany  @relation(fields: [companyId], references: [id])
+  rfqs         Rfq[]
+  projectLinks ProjectContact[]
 
   @@index([companyId])
 }
 
-model Lead {
-  id                String    @id @default(uuid())
-  title             String
-  description       String?
-  stage             String    @default("NEW")
-  expectedValue     Decimal?  @db.Decimal(18, 2)
-  expectedCloseDate DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+// ── CRM (Faz A): Project = construction projesini baştan sona temsil eder ──
+// (ham fırsattan won'a). Kaynak-bağımsız: source + externalRef ile manuel,
+// Barbour veya gelecekteki feed'den girilebilir.
+model Project {
+  id          String        @id @default(uuid())
+  title       String
+  description String?
+  stage       ProjectStage  @default(IDENTIFIED)
+  source      ProjectSource @default(MANUAL)
+  externalRef String? // dış sistem ID'si (Barbour bugün, başka feed yarın)
+  importedAt  DateTime?
 
-  companyId String
-  company   CustomerCompany @relation(fields: [companyId], references: [id])
+  // Yapısal proje verisi
+  projectCategory   ProjectCategory?
+  unitCount         Int? // tahmini büyüklük: oda/key/plot/cover
+  value             Decimal?         @db.Decimal(18, 2)
+  currency          String           @default("GBP")
+  expectedStartDate DateTime?
+  // Proje lokasyonu (firmanın şehrinden ayrı)
+  siteCity          String?
+  siteRegion        String?
+  sitePostcode      String?
+
+  probability    Int? // 0-100, ağırlıklı forecast (Faz B)
+  lostReasonCode LossReason?
+  lostReason     String?
+  stageUpdatedAt DateTime    @default(now())
 
   ownerId String
-  owner   User   @relation("lead_owner", fields: [ownerId], references: [id])
+  owner   User   @relation("project_owner", fields: [ownerId], references: [id])
 
+  companies   ProjectCompany[]
+  contacts    ProjectContact[]
+  rfqs        Rfq[]
+  stageEvents ProjectStageEvent[]
+  attachments Attachment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([source, externalRef]) // dedupe kaynak başına namespace'li
+  @@index([stage])
+  @@index([ownerId, stage])
+  @@index([source])
+  @@index([projectCategory])
+}
+
+// Aşama değişim geçmişi — velocity + hesap verebilirlik
+model ProjectStageEvent {
+  id          String        @id @default(uuid())
+  projectId   String
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fromStage   ProjectStage?
+  toStage     ProjectStage
+  changedById String
+  changedAt   DateTime      @default(now())
+  note        String?
+
+  @@index([projectId, changedAt])
+}
+
+// M:N — projede hangi firmalar, hangi rolde
+model ProjectCompany {
+  id        String          @id @default(uuid())
+  projectId String
+  project   Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  companyId String
+  company   CustomerCompany @relation(fields: [companyId], references: [id])
+  role      CompanyRole
+  isPrimary Boolean         @default(false) // teklif verdiğimiz asıl müşteri
+
+  @@unique([projectId, companyId, role])
   @@index([companyId])
-  @@index([ownerId])
+}
+
+// Projede konuştuğumuz spesifik kişiler
+model ProjectContact {
+  id        String  @id @default(uuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id])
+  note      String?
+
+  @@unique([projectId, contactId])
 }
 
 model Comment {
