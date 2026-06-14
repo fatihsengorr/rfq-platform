@@ -26,11 +26,12 @@ type CreateRfqFormProps = {
   projectId?: string;
   defaultProjectName?: string;
   defaultProjectDetails?: string;
+  defaultCompany?: CompanyOption | null;
 };
 
-export function CreateRfqForm({ requestedBy, projectId, defaultProjectName, defaultProjectDetails }: CreateRfqFormProps) {
+export function CreateRfqForm({ requestedBy, projectId, defaultProjectName, defaultProjectDetails, defaultCompany }: CreateRfqFormProps) {
   const [state, formAction, pending] = useActionState(createRfqAction, IDLE_RESULT);
-  const [selectedCompany, setSelectedCompany] = useState<CompanyOption | null>(null);
+  const [selectedCompany, setSelectedCompany] = useState<CompanyOption | null>(defaultCompany ?? null);
   const [selectedContact, setSelectedContact] = useState<ContactOption | null>(null);
 
   useEffect(() => {
