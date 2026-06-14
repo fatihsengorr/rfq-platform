@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSession } from "../../../lib/session";
 import { setFlashNotice } from "../../../lib/flash";
-import { getProjectById, isApiClientError } from "../../api";
+import { getProjectById, getCompanyById, isApiClientError } from "../../api";
+import type { CompanyOption } from "@/components/ui/company-combobox";
 import { PageHeader } from "@/components/ui/page-header";
 import { CreateRfqForm } from "./create-rfq-form";
 
@@ -21,14 +22,38 @@ export default async function NewRequestPage({ searchParams }: { searchParams: S
     redirect("/requests");
   }
 
-  // CRM (Faz A): if launched from a Project, prefill name/details and link it.
+  // CRM (Faz A): if launched from a Project, prefill name/details + the
+  // primary company, and link the RFQ back to the project.
   const { projectId } = await searchParams;
   let prefill: { projectId: string; name?: string; details?: string } | null = null;
+  let defaultCompany: CompanyOption | null = null;
   if (projectId) {
     try {
       const project = await getProjectById(projectId);
       if (project) {
         prefill = { projectId: project.id, name: project.title, details: project.description ?? undefined };
+
+        // Prefill the company we quote = the project's primary (or first) company.
+        const primaryLink = project.companies.find((c) => c.isPrimary) ?? project.companies[0];
+        if (primaryLink) {
+          const company = await getCompanyById(primaryLink.companyId);
+          if (company) {
+            defaultCompany = {
+              id: company.id,
+              name: company.name,
+              sector: company.sector,
+              country: company.country,
+              city: company.city,
+              contacts: company.contacts.map((ct) => ({
+                id: ct.id,
+                fullName: ct.fullName,
+                email: ct.email,
+                phone: ct.phone,
+                title: ct.title,
+              })),
+            };
+          }
+        }
       }
     } catch (error) {
       if (isApiClientError(error) && error.code === "UNAUTHORIZED") redirect("/login");
@@ -46,6 +71,7 @@ export default async function NewRequestPage({ searchParams }: { searchParams: S
         projectId={prefill?.projectId}
         defaultProjectName={prefill?.name}
         defaultProjectDetails={prefill?.details}
+        defaultCompany={defaultCompany}
       />
     </main>
   );
