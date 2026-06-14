@@ -175,6 +175,194 @@ export function computeStallLevel(
   return { level: "fresh", daysSilent };
 }
 
+// ── CRM (Faz A) ────────────────────────────────────────────────────
+export const PROJECT_STAGES = [
+  "IDENTIFIED",
+  "CONTACTED",
+  "ENGAGED",
+  "TENDER",
+  "WON",
+  "LOST",
+] as const;
+export type ProjectStage = (typeof PROJECT_STAGES)[number];
+
+export const PROJECT_STAGE_LABELS: Record<ProjectStage, string> = {
+  IDENTIFIED: "Identified",
+  CONTACTED: "Contacted",
+  ENGAGED: "Engaged",
+  TENDER: "Tender / RFQ",
+  WON: "Won",
+  LOST: "Lost",
+};
+
+// Pipeline'da hâlâ aktif (kapanmamış) aşamalar.
+export const OPEN_PROJECT_STAGES = [
+  "IDENTIFIED",
+  "CONTACTED",
+  "ENGAGED",
+  "TENDER",
+] as const satisfies readonly ProjectStage[];
+
+export const PROJECT_SOURCES = ["MANUAL", "BARBOUR", "REFERRAL", "REPEAT_CLIENT", "OTHER"] as const;
+export type ProjectSource = (typeof PROJECT_SOURCES)[number];
+
+export const PROJECT_CATEGORIES = [
+  "JOINERY",
+  "FFE",
+  "FIT_OUT",
+  "KITCHEN",
+  "BAR_RESTAURANT",
+  "RECEPTION",
+  "BEDROOM_CASEGOODS",
+  "RETAIL",
+  "OTHER",
+] as const;
+export type ProjectCategory = (typeof PROJECT_CATEGORIES)[number];
+
+export const PROJECT_CATEGORY_LABELS: Record<ProjectCategory, string> = {
+  JOINERY: "Joinery",
+  FFE: "FF&E",
+  FIT_OUT: "Fit-Out",
+  KITCHEN: "Kitchen",
+  BAR_RESTAURANT: "Bar / Restaurant",
+  RECEPTION: "Reception",
+  BEDROOM_CASEGOODS: "Bedroom Casegoods",
+  RETAIL: "Retail",
+  OTHER: "Other",
+};
+
+export const COMPANY_ROLES = [
+  "CLIENT_EMPLOYER",
+  "MAIN_CONTRACTOR",
+  "ARCHITECT",
+  "QS_COST_CONSULTANT",
+  "INTERIOR_DESIGNER",
+  "SUBCONTRACTOR",
+  "DEVELOPER",
+  "OTHER",
+] as const;
+export type CompanyRole = (typeof COMPANY_ROLES)[number];
+
+export const COMPANY_ROLE_LABELS: Record<CompanyRole, string> = {
+  CLIENT_EMPLOYER: "Client / Employer",
+  MAIN_CONTRACTOR: "Main Contractor",
+  ARCHITECT: "Architect",
+  QS_COST_CONSULTANT: "QS / Cost Consultant",
+  INTERIOR_DESIGNER: "Interior Designer",
+  SUBCONTRACTOR: "Subcontractor",
+  DEVELOPER: "Developer",
+  OTHER: "Other",
+};
+
+export const LOSS_REASONS = [
+  "PRICE",
+  "TIMELINE",
+  "LOST_TO_COMPETITOR",
+  "CANCELLED",
+  "NO_BUDGET",
+  "OTHER",
+] as const;
+export type LossReason = (typeof LOSS_REASONS)[number];
+
+export const LOSS_REASON_LABELS: Record<LossReason, string> = {
+  PRICE: "Price too high",
+  TIMELINE: "Timeline mismatch",
+  LOST_TO_COMPETITOR: "Lost to competitor",
+  CANCELLED: "Project cancelled",
+  NO_BUDGET: "No budget",
+  OTHER: "Other",
+};
+
+export function isOpenProjectStage(stage: ProjectStage): boolean {
+  return (OPEN_PROJECT_STAGES as readonly ProjectStage[]).includes(stage);
+}
+
+// A company in its role on a specific project.
+export type ProjectCompanyLink = {
+  id: string;
+  companyId: string;
+  companyName: string;
+  role: CompanyRole;
+  isPrimary: boolean;
+};
+
+// A contact attached to a project.
+export type ProjectContactLink = {
+  id: string;
+  contactId: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  title: string | null;
+  companyName: string;
+  note: string | null;
+};
+
+export type ProjectStageEventRecord = {
+  id: string;
+  fromStage: ProjectStage | null;
+  toStage: ProjectStage;
+  changedBy: string;
+  changedAt: string;
+  note: string | null;
+};
+
+// Compact card for the pipeline board.
+export type ProjectCard = {
+  id: string;
+  title: string;
+  stage: ProjectStage;
+  projectCategory: ProjectCategory | null;
+  value: number | null;
+  currency: Currency;
+  primaryCompanyName: string | null;
+  ownerName: string;
+  stageUpdatedAt: string;
+  createdAt: string;
+};
+
+// Full project detail.
+export type ProjectRecord = {
+  id: string;
+  title: string;
+  description: string | null;
+  stage: ProjectStage;
+  source: ProjectSource;
+  externalRef: string | null;
+  importedAt: string | null;
+  projectCategory: ProjectCategory | null;
+  unitCount: number | null;
+  value: number | null;
+  currency: Currency;
+  expectedStartDate: string | null;
+  siteCity: string | null;
+  siteRegion: string | null;
+  sitePostcode: string | null;
+  probability: number | null;
+  lostReasonCode: LossReason | null;
+  lostReason: string | null;
+  stageUpdatedAt: string;
+  ownerId: string;
+  ownerName: string;
+  createdAt: string;
+  companies: ProjectCompanyLink[];
+  contacts: ProjectContactLink[];
+  rfqs: Array<{ id: string; projectName: string; status: RfqStatus }>;
+  attachments: Attachment[];
+};
+
+// One column of the kanban board.
+export type ProjectBoardColumn = {
+  stage: ProjectStage;
+  count: number;
+  totalValueByCurrency: Array<{ currency: string; total: number }>;
+  cards: ProjectCard[];
+};
+
+export type ProjectBoard = {
+  columns: ProjectBoardColumn[];
+};
+
 // ── Action Result (for server actions) ─────────────────────────────
 export type ActionResult = {
   status: "idle" | "success" | "error";
