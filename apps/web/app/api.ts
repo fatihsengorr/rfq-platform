@@ -1,5 +1,18 @@
 import type { Attachment, RfqRecord } from "./data";
-import type { FollowUpActivityRecord, RevisionTimelineItem, RfqRevisionDiff } from "@crm/shared";
+import type {
+  FollowUpActivityRecord,
+  RevisionTimelineItem,
+  RfqRevisionDiff,
+  ProjectBoard,
+  ProjectCard,
+  ProjectRecord,
+  ProjectStageEventRecord,
+  ProjectStage,
+  ProjectSource,
+  ProjectCategory,
+  CompanyRole,
+  LossReason,
+} from "@crm/shared";
 import { getSession, type SessionUser } from "../lib/session";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
@@ -220,6 +233,7 @@ export async function createRfq(input: {
   requestedBy: string;
   companyId?: string;
   contactId?: string;
+  projectId?: string;
 }): Promise<RfqRecord> {
   return postAuthenticated<RfqRecord>("/api/rfqs", input);
 }
@@ -232,6 +246,7 @@ export type CompanyContact = {
   email: string | null;
   phone: string | null;
   title: string | null;
+  companyId?: string;
 };
 
 export type CompanyItem = {
@@ -242,6 +257,10 @@ export type CompanyItem = {
   city: string | null;
   website: string | null;
   notes: string | null;
+  category: CompanyRole | null;
+  addressLine: string | null;
+  postcode: string | null;
+  phone: string | null;
   rfqCount: number;
   contacts: CompanyContact[];
 };
@@ -265,6 +284,16 @@ export type CompanyKpi = {
   avgResponseTimeDays: number | null;
 };
 
+export type CompanyProjectLink = {
+  linkId: string;
+  projectId: string;
+  title: string;
+  stage: ProjectStage;
+  role: CompanyRole;
+  isPrimary: boolean;
+  stageUpdatedAt: string;
+};
+
 export type CompanyDetail = {
   id: string;
   name: string;
@@ -273,6 +302,10 @@ export type CompanyDetail = {
   city: string | null;
   website: string | null;
   notes: string | null;
+  category: CompanyRole | null;
+  addressLine: string | null;
+  postcode: string | null;
+  phone: string | null;
   rfqCount: number;
   contacts: CompanyContact[];
   recentRfqs: Array<{
@@ -282,11 +315,34 @@ export type CompanyDetail = {
     createdAt: string;
     deadline: string;
   }>;
+  projects: CompanyProjectLink[];
   kpi: CompanyKpi;
 };
 
 export async function getCompanyById(companyId: string): Promise<CompanyDetail | null> {
   return request<CompanyDetail>(`/api/companies/${companyId}`, { allowNotFound: true });
+}
+
+export async function updateCompany(
+  companyId: string,
+  input: Partial<{
+    name: string;
+    sector: string | null;
+    country: string | null;
+    city: string | null;
+    website: string | null;
+    notes: string | null;
+    category: CompanyRole | null;
+    addressLine: string | null;
+    postcode: string | null;
+    phone: string | null;
+  }>
+): Promise<CompanyDetail> {
+  return patchAuthenticated<CompanyDetail>(`/api/companies/${companyId}`, input);
+}
+
+export async function getCompanyContacts(companyId: string): Promise<CompanyContact[]> {
+  return (await request<CompanyContact[]>(`/api/companies/${companyId}/contacts`)) ?? [];
 }
 
 export type CompanyRfqListFilter = {
@@ -399,6 +455,10 @@ export async function createCompany(input: {
   city?: string;
   website?: string;
   notes?: string;
+  category?: CompanyRole;
+  addressLine?: string;
+  postcode?: string;
+  phone?: string;
   contact?: {
     fullName: string;
     email?: string;
@@ -608,6 +668,147 @@ export async function resetPasswordWithToken(input: { token: string; newPassword
 
 export async function changeMyPassword(input: { currentPassword: string; newPassword: string }): Promise<{ success: boolean }> {
   return patchAuthenticated<{ success: boolean }>("/api/auth/change-password", input);
+}
+
+// ── Projects (CRM — Faz A) ──────────────────────────────────────────
+
+export type { ProjectBoard, ProjectCard, ProjectRecord, ProjectStageEventRecord } from "@crm/shared";
+
+export async function getProjectBoard(ownerId?: string): Promise<ProjectBoard> {
+  const qs = ownerId ? `?ownerId=${encodeURIComponent(ownerId)}` : "";
+  return (await request<ProjectBoard>(`/api/projects/board${qs}`)) ?? { columns: [] };
+}
+
+export type ProjectListResult = { data: ProjectCard[]; total: number; page: number; limit: number };
+
+export async function listProjects(filter: {
+  stage?: ProjectStage;
+  ownerId?: string;
+  source?: ProjectSource;
+  category?: ProjectCategory;
+  q?: string;
+  page?: number;
+  limit?: number;
+} = {}): Promise<ProjectListResult> {
+  const params = new URLSearchParams();
+  if (filter.stage) params.set("stage", filter.stage);
+  if (filter.ownerId) params.set("ownerId", filter.ownerId);
+  if (filter.source) params.set("source", filter.source);
+  if (filter.category) params.set("category", filter.category);
+  if (filter.q) params.set("q", filter.q);
+  if (filter.page) params.set("page", String(filter.page));
+  if (filter.limit) params.set("limit", String(filter.limit));
+  const qs = params.toString();
+  return (
+    (await request<ProjectListResult>(`/api/projects${qs ? `?${qs}` : ""}`)) ?? {
+      data: [],
+      total: 0,
+      page: 1,
+      limit: 25,
+    }
+  );
+}
+
+export async function getProjectById(id: string): Promise<ProjectRecord | null> {
+  return request<ProjectRecord>(`/api/projects/${id}`, { allowNotFound: true });
+}
+
+export async function getProjectStageHistory(id: string): Promise<ProjectStageEventRecord[]> {
+  return (await request<ProjectStageEventRecord[]>(`/api/projects/${id}/stage-history`)) ?? [];
+}
+
+export async function createProject(input: {
+  title: string;
+  description?: string;
+  projectCategory?: ProjectCategory;
+  unitCount?: number;
+  value?: number;
+  currency?: "GBP" | "EUR" | "USD" | "TRY";
+  expectedStartDate?: string;
+  siteCity?: string;
+  siteRegion?: string;
+  sitePostcode?: string;
+  probability?: number;
+  source?: ProjectSource;
+  firstCompanyId?: string;
+  firstCompanyRole?: CompanyRole;
+}): Promise<ProjectRecord> {
+  return postAuthenticated<ProjectRecord>("/api/projects", input);
+}
+
+export async function updateProject(
+  id: string,
+  input: Partial<{
+    title: string;
+    description: string | null;
+    projectCategory: ProjectCategory | null;
+    unitCount: number | null;
+    value: number | null;
+    currency: "GBP" | "EUR" | "USD" | "TRY";
+    expectedStartDate: string | null;
+    siteCity: string | null;
+    siteRegion: string | null;
+    sitePostcode: string | null;
+    probability: number | null;
+  }>
+): Promise<ProjectRecord> {
+  return patchAuthenticated<ProjectRecord>(`/api/projects/${id}`, input);
+}
+
+export async function moveProjectStage(
+  id: string,
+  input: { stage: ProjectStage; lostReasonCode?: LossReason; lostReason?: string; note?: string }
+): Promise<ProjectRecord> {
+  return patchAuthenticated<ProjectRecord>(`/api/projects/${id}/stage`, input);
+}
+
+export async function addProjectCompany(
+  id: string,
+  input: { companyId: string; role: CompanyRole; isPrimary?: boolean }
+): Promise<ProjectRecord> {
+  return postAuthenticated<ProjectRecord>(`/api/projects/${id}/companies`, input);
+}
+
+export async function removeProjectCompany(id: string, linkId: string): Promise<ProjectRecord> {
+  return postAuthenticated<ProjectRecord>(`/api/projects/${id}/companies/remove`, { linkId });
+}
+
+export async function addProjectContact(
+  id: string,
+  input: { contactId: string; note?: string }
+): Promise<ProjectRecord> {
+  return postAuthenticated<ProjectRecord>(`/api/projects/${id}/contacts`, input);
+}
+
+export async function removeProjectContact(id: string, linkId: string): Promise<ProjectRecord> {
+  return postAuthenticated<ProjectRecord>(`/api/projects/${id}/contacts/remove`, { linkId });
+}
+
+// ── CRM attachments (project/company files) ─────────────────────────
+
+export async function presignCrmUpload(input: {
+  scope: "project" | "company";
+  entityId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+}): Promise<{ uploadUrl: string; storageKey: string }> {
+  return postAuthenticated<{ uploadUrl: string; storageKey: string }>("/api/attachments/presign-upload", input);
+}
+
+export async function confirmCrmUpload(input: {
+  scope: "project" | "company";
+  entityId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  storageKey: string;
+}): Promise<Attachment> {
+  return postAuthenticated<Attachment>("/api/attachments/confirm-upload", input);
+}
+
+export async function removeCrmAttachment(attachmentId: string): Promise<{ ok: boolean }> {
+  return postAuthenticated<{ ok: boolean }>(`/api/attachments/${attachmentId}/remove`, {});
 }
 
 export async function getMe(): Promise<{ user: SessionUser }> {

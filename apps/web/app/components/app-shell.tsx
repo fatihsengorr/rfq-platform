@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Users,
   Building2,
+  Target,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
@@ -36,6 +37,7 @@ function teamLabel(role: SessionUser["role"]) {
 
 const iconMap: Record<string, React.ReactNode> = {
   "/": <LayoutDashboard className="size-4" />,
+  "/projects": <Target className="size-4" />,
   "/requests": <FileText className="size-4" />,
   "/quotes": <Receipt className="size-4" />,
   "/companies": <Building2 className="size-4" />,
@@ -48,11 +50,19 @@ const iconMap: Record<string, React.ReactNode> = {
 function menuForRole(role: SessionUser["role"]) {
   const items: Array<{ href: string; label: string }> = [
     { href: "/", label: "Dashboard" },
+  ];
+
+  // CRM pipeline is sales/admin only — Istanbul roles never see it.
+  if (role === "LONDON_SALES" || role === "ADMIN") {
+    items.push({ href: "/projects", label: "Projects" });
+  }
+
+  items.push(
     { href: "/requests", label: "Requests" },
     { href: "/quotes", label: "Quotes" },
     { href: "/companies", label: "Companies" },
     { href: "/account", label: "Account" },
-  ];
+  );
 
   if (role === "LONDON_SALES" || role === "ADMIN") {
     items.push({ href: "/requests/new", label: "New Request" });
