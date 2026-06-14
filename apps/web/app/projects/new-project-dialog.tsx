@@ -67,7 +67,23 @@ export function NewProjectDialog() {
 
         <FormMessage state={state} />
 
+        {/* Company picker is a SIBLING of the form, not a child. Its internal
+            <form> (the "new company" sub-form) must not nest inside ours —
+            nested forms make the "Create company" button submit the project
+            form instead. The selected company is bridged in via a hidden input. */}
+        <div className="border-b border-border pb-3 mb-1">
+          <p className="text-sm font-semibold mb-2">Primary company (optional)</p>
+          <CompanyCombobox
+            selectedCompany={selectedCompany}
+            selectedContact={selectedContact}
+            onCompanySelect={setSelectedCompany}
+            onContactSelect={setSelectedContact}
+            onNewCompany={handleNewCompany}
+          />
+        </div>
+
         <form action={formAction} className="grid sm:grid-cols-2 gap-4">
+          <input type="hidden" name="companyId" value={selectedCompany?.id ?? ""} />
           <div className="sm:col-span-2 grid gap-1.5">
             <Label htmlFor="title">Title</Label>
             <Input id="title" name="title" required minLength={3} placeholder="e.g. Hilton Bankside refurbishment" />
@@ -129,18 +145,6 @@ export function NewProjectDialog() {
           <div className="grid gap-1.5">
             <Label htmlFor="sitePostcode">Site postcode</Label>
             <Input id="sitePostcode" name="sitePostcode" placeholder="e.g. SE1 9PG" />
-          </div>
-
-          {/* Optional first company + its role on this project */}
-          <div className="sm:col-span-2 border-t border-border pt-3 mt-1">
-            <p className="text-sm font-semibold mb-2">Primary company (optional)</p>
-            <CompanyCombobox
-              selectedCompany={selectedCompany}
-              selectedContact={selectedContact}
-              onCompanySelect={setSelectedCompany}
-              onContactSelect={setSelectedContact}
-              onNewCompany={handleNewCompany}
-            />
           </div>
 
           {selectedCompany && (
