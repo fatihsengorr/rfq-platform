@@ -3,6 +3,7 @@ import {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
+  DeleteObjectCommand,
   HeadBucketCommand,
   CreateBucketCommand,
 } from "@aws-sdk/client-s3";
@@ -96,6 +97,35 @@ export async function getPresignedUploadUrl(input: {
   return { url, storageKey };
 }
 
+/**
+ * CRM (Faz A): presigned PUT for project- or company-scoped files. Reuses the
+ * same bucket/credentials; only the key prefix differs from RFQ attachments.
+ */
+export async function getPresignedUploadUrlForEntity(input: {
+  scope: "project" | "company";
+  entityId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+}) {
+  await ensureBucket();
+
+  const fileName = safeFileName(input.fileName);
+  const stamp = Date.now();
+  const storageKey = `${input.scope}/${input.entityId}/files/${stamp}-${randomUUID()}-${fileName}`;
+
+  const command = new PutObjectCommand({
+    Bucket: bucket,
+    Key: storageKey,
+    ContentType: input.mimeType || "application/octet-stream",
+    ContentLength: input.sizeBytes,
+  });
+
+  const url = await getSignedUrl(s3, command, { expiresIn: 300 }); // 5 minutes
+
+  return { url, storageKey };
+}
+
 /** Generate a presigned GET URL for direct client-from-S3 download */
 export async function getPresignedDownloadUrl(storageKey: string, fileName: string) {
   await ensureBucket();
@@ -137,6 +167,12 @@ export async function uploadAttachmentToStorage(input: {
   );
 
   return { storageKey, sizeBytes: input.bytes.byteLength };
+}
+
+/** Delete an object from storage (CRM file removal). Best-effort. */
+export async function deleteObjectFromStorage(storageKey: string) {
+  await ensureBucket();
+  await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: storageKey }));
 }
 
 /** Legacy: download via API proxy (kept for backward compatibility) */
