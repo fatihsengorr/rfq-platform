@@ -1,13 +1,21 @@
 import type { FastifyPluginAsync } from "fastify";
+import { UserRole } from "@prisma/client";
 import { z } from "zod";
-import { sendError, requireAuth } from "../../middleware.js";
+import { sendError, requireAuth, requireRole } from "../../middleware.js";
 import {
   searchCompanies,
   getCompanyById,
   createCompany,
+  updateCompany,
   addContact,
+  listCompanyContacts,
   listCompanyRfqs,
 } from "./company.service.js";
+
+const COMPANY_ROLE = z.enum([
+  "CLIENT_EMPLOYER", "MAIN_CONTRACTOR", "ARCHITECT", "QS_COST_CONSULTANT",
+  "INTERIOR_DESIGNER", "SUBCONTRACTOR", "DEVELOPER", "OTHER",
+]);
 
 const createCompanySchema = z.object({
   name: z.string().min(2),
@@ -16,6 +24,10 @@ const createCompanySchema = z.object({
   city: z.string().optional(),
   website: z.string().optional(),
   notes: z.string().optional(),
+  category: COMPANY_ROLE.optional(),
+  addressLine: z.string().optional(),
+  postcode: z.string().optional(),
+  phone: z.string().optional(),
   contact: z
     .object({
       fullName: z.string().min(2),
@@ -24,6 +36,19 @@ const createCompanySchema = z.object({
       title: z.string().optional(),
     })
     .optional(),
+});
+
+const updateCompanySchema = z.object({
+  name: z.string().min(2).optional(),
+  sector: z.string().nullable().optional(),
+  country: z.string().nullable().optional(),
+  city: z.string().nullable().optional(),
+  website: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  category: COMPANY_ROLE.nullable().optional(),
+  addressLine: z.string().nullable().optional(),
+  postcode: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
 });
 
 const createContactSchema = z.object({
@@ -122,6 +147,49 @@ export const registerCompanyRoutes: FastifyPluginAsync = async (server) => {
     try {
       const company = await createCompany(parsed.data);
       return reply.status(201).send(company);
+    } catch (error) {
+      return sendError(reply, error);
+    }
+  });
+
+  // CRM (Faz A): edit company classification + address. Sales/admin only.
+  server.patch("/:id", async (request, reply) => {
+    const session = await requireRole(request, reply, UserRole.LONDON_SALES, UserRole.ADMIN);
+    if (!session) return;
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ code: "INVALID_REQUEST", message: "Invalid company ID." });
+    }
+
+    const parsed = updateCompanySchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({
+        code: "INVALID_REQUEST",
+        message: "Validation failed.",
+        details: parsed.error.flatten(),
+      });
+    }
+
+    try {
+      return await updateCompany(params.data.id, parsed.data);
+    } catch (error) {
+      return sendError(reply, error);
+    }
+  });
+
+  // CRM (Faz A): contact picker for linking a contact to a project.
+  server.get("/:id/contacts", async (request, reply) => {
+    const session = await requireAuth(request, reply);
+    if (!session) return;
+
+    const params = z.object({ id: z.string().uuid() }).safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ code: "INVALID_REQUEST", message: "Invalid company ID." });
+    }
+
+    try {
+      return await listCompanyContacts(params.data.id);
     } catch (error) {
       return sendError(reply, error);
     }

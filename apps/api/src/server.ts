@@ -8,6 +8,8 @@ import { registerRfqRoutes } from "./modules/rfq/rfq.routes.js";
 import { registerUserRoutes } from "./modules/users/users.routes.js";
 import { registerCommentRoutes } from "./modules/rfq/comment.routes.js";
 import { registerCompanyRoutes } from "./modules/company/company.routes.js";
+import { registerProjectRoutes } from "./modules/project/project.routes.js";
+import { registerAttachmentRoutes } from "./modules/attachment/attachment.routes.js";
 import { registerSearchRoutes } from "./modules/search/search.routes.js";
 import { registerCronRoutes } from "./modules/cron/cron.routes.js";
 import { registerNotificationRoutes } from "./modules/notifications/notifications.routes.js";
@@ -127,6 +129,8 @@ export function buildServer() {
   server.register(registerCommentRoutes, { prefix: "/api/rfqs" });
   server.register(registerUserRoutes, { prefix: "/api/users" });
   server.register(registerCompanyRoutes, { prefix: "/api/companies" });
+  server.register(registerProjectRoutes, { prefix: "/api/projects" });
+  server.register(registerAttachmentRoutes, { prefix: "/api/attachments" });
   server.register(registerSearchRoutes, { prefix: "/api/search" });
   server.register(registerCronRoutes, { prefix: "/api/cron" });
   server.register(registerNotificationRoutes, { prefix: "/api/notifications" });

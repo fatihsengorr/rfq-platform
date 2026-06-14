@@ -1,4 +1,4 @@
-import { getPresignedUploadUrl, confirmUpload } from "../app/api";
+import { getPresignedUploadUrl, confirmUpload, presignCrmUpload, confirmCrmUpload } from "../app/api";
 import type { Attachment } from "@crm/shared";
 
 /**
@@ -40,4 +40,36 @@ export async function uploadFilePresigned(
     sizeBytes: file.size,
     quoteRevisionId,
   });
+}
+
+/**
+ * CRM (Faz A): same presigned flow for project- or company-scoped files.
+ */
+export async function uploadCrmFilePresigned(
+  scope: "project" | "company",
+  entityId: string,
+  file: File
+): Promise<Attachment> {
+  const fileName = file.name?.trim() || "attachment.bin";
+  const mimeType = file.type || "application/octet-stream";
+
+  const { uploadUrl, storageKey } = await presignCrmUpload({
+    scope,
+    entityId,
+    fileName,
+    mimeType,
+    sizeBytes: file.size,
+  });
+
+  const uploadResponse = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": mimeType },
+    body: Buffer.from(await file.arrayBuffer()),
+  });
+
+  if (!uploadResponse.ok) {
+    throw new Error(`S3 upload failed: ${uploadResponse.status}`);
+  }
+
+  return confirmCrmUpload({ scope, entityId, fileName, mimeType, sizeBytes: file.size, storageKey });
 }

@@ -15,6 +15,8 @@ import {
   quoteSubmittedNotification,
   approvalDecisionNotification,
 } from "../email/email.templates.js";
+import { advanceToTenderOnRfq } from "../project/project.service.js";
+import { logger } from "../../logger.js";
 
 const createRfqSchema = z.object({
   projectName: z.string().min(2),
@@ -23,6 +25,8 @@ const createRfqSchema = z.object({
   requestedBy: z.string().min(2),
   companyId: z.string().uuid().optional(),
   contactId: z.string().uuid().optional(),
+  // CRM (Faz A): when an RFQ is created from a Project, link it back.
+  projectId: z.string().uuid().optional(),
 });
 
 // Faz 3 — Feature 2: revising the request requires a reason so the audit
@@ -375,7 +379,19 @@ export const registerRfqRoutes: FastifyPluginAsync = async (server) => {
       createdById: session.user.id,
       companyId: payload.companyId,
       contactId: payload.contactId,
+      projectId: payload.projectId,
     });
+
+    // CRM (Faz A): linking an RFQ to a Project advances it to TENDER when it's
+    // still in a pre-tender stage. Guarded + non-fatal: a CRM hiccup must not
+    // fail RFQ creation, the core flow.
+    if (payload.projectId) {
+      try {
+        await advanceToTenderOnRfq(payload.projectId, session.user.id);
+      } catch (error) {
+        logger.error({ err: error, projectId: payload.projectId, rfqId: created.id }, "Failed to advance project stage on RFQ creation");
+      }
+    }
 
     // Email: notify Istanbul managers about new RFQ
     const managers = await rfqStore.getManagerUsers();
