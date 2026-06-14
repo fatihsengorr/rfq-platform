@@ -1,11 +1,32 @@
-import type { Prisma } from "@prisma/client";
+import type { Prisma, CompanyRole } from "@prisma/client";
 import { ApiError } from "../../errors.js";
 import { prisma } from "../../prisma.js";
 
 // ── Mapping helpers ────────────────────────────────────────────────
 
-function mapContact(ct: { id: string; fullName: string; email: string | null; phone: string | null; title: string | null }) {
-  return { id: ct.id, fullName: ct.fullName, email: ct.email, phone: ct.phone, title: ct.title };
+function mapContact(ct: { id: string; fullName: string; email: string | null; phone: string | null; title: string | null; companyId?: string }) {
+  return { id: ct.id, fullName: ct.fullName, email: ct.email, phone: ct.phone, title: ct.title, companyId: ct.companyId };
+}
+
+// Shared shape of a company's own (non-relational) CRM fields.
+function mapCompanyFields(c: {
+  id: string; name: string; sector: string | null; country: string | null; city: string | null;
+  website: string | null; notes: string | null;
+  category: CompanyRole | null; addressLine: string | null; postcode: string | null; phone: string | null;
+}) {
+  return {
+    id: c.id,
+    name: c.name,
+    sector: c.sector,
+    country: c.country,
+    city: c.city,
+    website: c.website,
+    notes: c.notes,
+    category: c.category,
+    addressLine: c.addressLine,
+    postcode: c.postcode,
+    phone: c.phone,
+  };
 }
 
 // ── KPI computation ────────────────────────────────────────────────
@@ -249,13 +270,7 @@ export async function searchCompanies(query?: string) {
   });
 
   return companies.map((c) => ({
-    id: c.id,
-    name: c.name,
-    sector: c.sector,
-    country: c.country,
-    city: c.city,
-    website: c.website,
-    notes: c.notes,
+    ...mapCompanyFields(c),
     rfqCount: c._count.rfqs,
     contacts: c.contacts.map(mapContact),
   }));
@@ -271,6 +286,11 @@ export async function getCompanyById(id: string) {
         take: 20,
         select: { id: true, projectName: true, status: true, createdAt: true, deadline: true },
       },
+      // CRM (Faz A): projects this company is involved in, with its role on each.
+      projectRoles: {
+        orderBy: { project: { stageUpdatedAt: "desc" } },
+        include: { project: { select: { id: true, title: true, stage: true, stageUpdatedAt: true } } },
+      },
       _count: { select: { rfqs: true } },
     },
   });
@@ -283,13 +303,7 @@ export async function getCompanyById(id: string) {
   const kpi = await computeCompanyKpi(id);
 
   return {
-    id: company.id,
-    name: company.name,
-    sector: company.sector,
-    country: company.country,
-    city: company.city,
-    website: company.website,
-    notes: company.notes,
+    ...mapCompanyFields(company),
     rfqCount: company._count.rfqs,
     contacts: company.contacts.map(mapContact),
     recentRfqs: company.rfqs.map((r) => ({
@@ -298,6 +312,15 @@ export async function getCompanyById(id: string) {
       status: r.status,
       createdAt: r.createdAt.toISOString(),
       deadline: r.deadline.toISOString(),
+    })),
+    projects: company.projectRoles.map((pr) => ({
+      linkId: pr.id,
+      projectId: pr.project.id,
+      title: pr.project.title,
+      stage: pr.project.stage,
+      role: pr.role,
+      isPrimary: pr.isPrimary,
+      stageUpdatedAt: pr.project.stageUpdatedAt.toISOString(),
     })),
     kpi,
   };
@@ -310,6 +333,10 @@ export async function createCompany(data: {
   city?: string;
   website?: string;
   notes?: string;
+  category?: CompanyRole;
+  addressLine?: string;
+  postcode?: string;
+  phone?: string;
   contact?: { fullName: string; email?: string; phone?: string; title?: string };
 }) {
   const { contact, ...companyData } = data;
@@ -326,16 +353,57 @@ export async function createCompany(data: {
   });
 
   return {
-    id: company.id,
-    name: company.name,
-    sector: company.sector,
-    country: company.country,
-    city: company.city,
-    website: company.website,
-    notes: company.notes,
+    ...mapCompanyFields(company),
     rfqCount: company._count.rfqs,
     contacts: company.contacts.map(mapContact),
   };
+}
+
+// CRM (Faz A): edit a company's classification + address details.
+export async function updateCompany(
+  id: string,
+  data: Partial<{
+    name: string;
+    sector: string | null;
+    country: string | null;
+    city: string | null;
+    website: string | null;
+    notes: string | null;
+    category: CompanyRole | null;
+    addressLine: string | null;
+    postcode: string | null;
+    phone: string | null;
+  }>
+) {
+  const update: Prisma.CustomerCompanyUpdateInput = {};
+  if (data.name !== undefined) update.name = data.name;
+  if (data.sector !== undefined) update.sector = data.sector;
+  if (data.country !== undefined) update.country = data.country;
+  if (data.city !== undefined) update.city = data.city;
+  if (data.website !== undefined) update.website = data.website;
+  if (data.notes !== undefined) update.notes = data.notes;
+  if (data.category !== undefined) update.category = data.category;
+  if (data.addressLine !== undefined) update.addressLine = data.addressLine;
+  if (data.postcode !== undefined) update.postcode = data.postcode;
+  if (data.phone !== undefined) update.phone = data.phone;
+
+  try {
+    await prisma.customerCompany.update({ where: { id }, data: update });
+  } catch {
+    throw new ApiError("RFQ_NOT_FOUND", "Company not found.", 404);
+  }
+  return getCompanyById(id);
+}
+
+// CRM (Faz A): lightweight contact list for the project contact picker.
+export async function listCompanyContacts(companyId: string) {
+  const company = await prisma.customerCompany.findUnique({ where: { id: companyId }, select: { id: true } });
+  if (!company) throw new ApiError("RFQ_NOT_FOUND", "Company not found.", 404);
+  const contacts = await prisma.contact.findMany({
+    where: { companyId },
+    orderBy: { fullName: "asc" },
+  });
+  return contacts.map(mapContact);
 }
 
 export async function addContact(companyId: string, data: { fullName: string; email?: string; phone?: string; title?: string }) {
